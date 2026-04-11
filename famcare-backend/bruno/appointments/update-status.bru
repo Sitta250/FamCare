@@ -1,0 +1,22 @@
+meta {
+  name: Update Appointment Status
+  type: http
+  seq: 3
+}
+
+patch {
+  url: http://localhost:3000/api/v1/appointments/{{appointmentId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: test-line-1
+}
+
+body:json {
+  {
+    "status": "COMPLETED",
+    "postNotes": "หมอแนะนำให้ลดน้ำตาล"
+  }
+}

@@ -1,0 +1,25 @@
+meta {
+  name: Create Appointment
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/api/v1/appointments
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: test-line-1
+}
+
+body:json {
+  {
+    "familyMemberId": "{{memberId}}",
+    "title": "พบแพทย์ตรวจเบาหวาน",
+    "appointmentAt": "2026-06-01T10:00:00.000Z",
+    "doctor": "นพ.สมชาย",
+    "hospital": "Bumrungrad"
+  }
+}
