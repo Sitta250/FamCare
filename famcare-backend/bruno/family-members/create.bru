@@ -1,0 +1,26 @@
+meta {
+  name: Create Family Member
+  type: http
+  seq: 2
+}
+
+post {
+  url: http://localhost:3000/api/v1/family-members
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: test-line-1
+}
+
+body:json {
+  {
+    "name": "แม่",
+    "relation": "mother",
+    "dateOfBirth": "1960-05-15",
+    "bloodType": "A",
+    "allergies": "penicillin",
+    "conditions": "diabetes"
+  }
+}

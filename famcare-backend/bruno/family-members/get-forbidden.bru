@@ -1,0 +1,15 @@
+meta {
+  name: Get Family Member - Forbidden (wrong user)
+  type: http
+  seq: 6
+}
+
+get {
+  url: http://localhost:3000/api/v1/family-members/{{memberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: other-user-999
+}

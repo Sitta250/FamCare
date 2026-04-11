@@ -1,0 +1,223 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  lineUserId  String   @unique
+  displayName String
+  photoUrl    String?
+  phone       String?
+  createdAt   DateTime @default(now())
+
+  familyMembers           FamilyMember[]  @relation("OwnedMembers")
+  addedMembers            FamilyMember[]  @relation("AddedMembers")
+  accessGranted           FamilyAccess[]  @relation("GrantedBy")
+  accessReceived          FamilyAccess[]  @relation("GrantedTo")
+  accompaniedAppointments Appointment[]   @relation("AccompaniedBy")
+}
+
+model FamilyMember {
+  id                    String    @id @default(cuid())
+  ownerId               String
+  addedById             String
+  name                  String
+  relation              String
+  dateOfBirth           DateTime?
+  bloodType             String?
+  allergies             String?
+  conditions            String?
+  photoUrl              String?
+  preferredHospital     String?
+  missedDoseAlertsEnabled Boolean @default(true)
+  createdAt             DateTime  @default(now())
+
+  owner             User               @relation("OwnedMembers", fields: [ownerId], references: [id], onDelete: Restrict)
+  addedBy           User               @relation("AddedMembers", fields: [addedById], references: [id], onDelete: Restrict)
+  accessList        FamilyAccess[]
+  appointments      Appointment[]
+  medications       Medication[]
+  healthMetrics     HealthMetric[]
+  documents         Document[]
+  symptomLogs       SymptomLog[]
+  emergencyContacts EmergencyContact[]
+}
+
+model EmergencyContact {
+  id             String   @id @default(cuid())
+  familyMemberId String
+  name           String
+  phone          String?
+  relation       String?
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
+model FamilyAccess {
+  id              String     @id @default(cuid())
+  grantedByUserId String
+  grantedToUserId String
+  familyMemberId  String
+  role            AccessRole
+  createdAt       DateTime   @default(now())
+
+  grantedBy    User         @relation("GrantedBy", fields: [grantedByUserId], references: [id])
+  grantedTo    User         @relation("GrantedTo", fields: [grantedToUserId], references: [id])
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([grantedToUserId, familyMemberId])
+}
+
+model Appointment {
+  id                  String            @id @default(cuid())
+  familyMemberId      String
+  addedByUserId       String
+  accompaniedByUserId String?
+  title               String
+  appointmentAt       DateTime
+  doctor              String?
+  hospital            String?
+  reason              String?
+  preNotes            String?
+  postNotes           String?
+  whoBringsNote       String?
+  status              AppointmentStatus @default(UPCOMING)
+  createdAt           DateTime          @default(now())
+
+  familyMember  FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  accompaniedBy User?        @relation("AccompaniedBy", fields: [accompaniedByUserId], references: [id])
+  reminders     Reminder[]
+}
+
+model Reminder {
+  id            String       @id @default(cuid())
+  appointmentId String
+  type          ReminderType
+  scheduledAt   DateTime
+  sent          Boolean      @default(false)
+
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model Medication {
+  id                String    @id @default(cuid())
+  familyMemberId    String
+  addedByUserId     String
+  name              String
+  dosage            String?
+  frequency         String?
+  instructions      String?
+  startDate         DateTime?
+  endDate           DateTime?
+  quantity          Int?
+  photoUrl          String?
+  reminderTimesJson String?
+  active            Boolean   @default(true)
+  createdAt         DateTime  @default(now())
+
+  familyMember FamilyMember    @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  logs         MedicationLog[]
+}
+
+model MedicationLog {
+  id             String           @id @default(cuid())
+  medicationId   String
+  loggedByUserId String
+  status         MedicationStatus
+  takenAt        DateTime
+  createdAt      DateTime         @default(now())
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+}
+
+model HealthMetric {
+  id             String     @id @default(cuid())
+  familyMemberId String
+  addedByUserId  String
+  type           MetricType
+  value          Float
+  unit           String
+  note           String?
+  measuredAt     DateTime
+  createdAt      DateTime   @default(now())
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
+model Document {
+  id             String       @id @default(cuid())
+  familyMemberId String
+  addedByUserId  String
+  type           DocumentType
+  cloudinaryUrl  String
+  ocrText        String?
+  createdAt      DateTime     @default(now())
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
+model SymptomLog {
+  id             String   @id @default(cuid())
+  familyMemberId String
+  addedByUserId  String
+  description    String
+  severity       Int
+  note           String?
+  attachmentUrl  String?
+  loggedAt       DateTime
+  createdAt      DateTime @default(now())
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
+// Enums
+
+enum AccessRole {
+  CAREGIVER
+  VIEWER
+}
+
+enum AppointmentStatus {
+  UPCOMING
+  COMPLETED
+  CANCELLED
+  MISSED
+}
+
+enum ReminderType {
+  SEVEN_DAYS
+  TWO_DAYS
+  ONE_DAY
+  TWO_HOURS
+}
+
+enum MedicationStatus {
+  TAKEN
+  MISSED
+  SKIPPED
+}
+
+enum MetricType {
+  BLOOD_PRESSURE
+  BLOOD_SUGAR
+  WEIGHT
+  TEMPERATURE
+  CUSTOM
+}
+
+enum DocumentType {
+  PRESCRIPTION
+  LAB_RESULT
+  DOCTOR_NOTE
+  BILL
+  XRAY
+  OTHER
+}

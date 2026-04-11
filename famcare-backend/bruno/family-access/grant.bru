@@ -1,0 +1,22 @@
+meta {
+  name: Grant Access
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/api/v1/family-members/{{memberId}}/access
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: owner-line-id
+}
+
+body:json {
+  {
+    "grantedToLineUserId": "caregiver-line-id",
+    "role": "CAREGIVER"
+  }
+}
