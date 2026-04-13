@@ -13,7 +13,7 @@ function formatMember(m) {
 export async function listFamilyMembers(actorUserId) {
   // owned members
   const owned = await prisma.familyMember.findMany({
-    where: { ownerId: actorUserId },
+    where: { ownerId: actorUserId, isDeleted: false },
     orderBy: { createdAt: 'asc' },
   })
 
@@ -24,7 +24,7 @@ export async function listFamilyMembers(actorUserId) {
     orderBy: { createdAt: 'asc' },
   })
 
-  const grantedMembers = granted.map(a => a.familyMember)
+  const grantedMembers = granted.map(a => a.familyMember).filter(m => !m.isDeleted)
 
   // deduplicate by id (owner who is also in access list)
   const seen = new Set(owned.map(m => m.id))
@@ -35,6 +35,9 @@ export async function listFamilyMembers(actorUserId) {
 
 export async function createFamilyMember(actorUserId, body) {
   const { name, relation, dateOfBirth, bloodType, allergies, conditions, photoUrl, preferredHospital, missedDoseAlertsEnabled } = body
+  if (!name) {
+    throw Object.assign(new Error('name is required'), { status: 400, code: 'VALIDATION_ERROR' })
+  }
   const member = await prisma.familyMember.create({
     data: {
       ownerId: actorUserId,
@@ -84,5 +87,8 @@ export async function deleteFamilyMember(actorUserId, familyMemberId) {
   if (role !== 'OWNER') {
     throw Object.assign(new Error('Only the owner can delete a family member'), { status: 403, code: 'FORBIDDEN' })
   }
-  await prisma.familyMember.delete({ where: { id: familyMemberId } })
+  await prisma.familyMember.update({
+    where: { id: familyMemberId },
+    data: { isDeleted: true },
+  })
 }

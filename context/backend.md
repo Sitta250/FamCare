@@ -77,3 +77,9 @@ See `SCHEMA.md` for the full Prisma schema and ERD. Summary:
 2. Test endpoint in **Bruno** (collections saved in `/bruno`)
 3. Verify data in **Prisma Studio** (`npx prisma studio`)
 4. For LINE bot: run `ngrok http 3000`, update webhook URL in LINE Developer Console, test by messaging the bot
+
+## Related docs
+
+- [prd.md](prd.md) — product scope
+- [schema.md](schema.md) — intended data model (Prisma in repo may evolve; note drift in [DECISION_LOG.md](DECISION_LOG.md))
+- [DECISION_LOG.md](DECISION_LOG.md) — log when behavior or scope differs from PRD/plan (bug fixes, new fields, stack swaps)

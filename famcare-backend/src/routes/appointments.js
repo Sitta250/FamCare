@@ -7,6 +7,7 @@ import {
   updateAppointment,
   deleteAppointment,
 } from '../services/appointmentService.js'
+import { getPreAppointmentReport } from '../services/preAppointmentReportService.js'
 
 const router = Router()
 
@@ -14,8 +15,8 @@ router.use(requireLineUser)
 
 router.get('/', async (req, res, next) => {
   try {
-    const { familyMemberId, status, from, to } = req.query
-    const data = await listAppointments(req.user.id, { familyMemberId, status, from, to })
+    const { familyMemberId, status, from, to, accompaniedByUserId, view } = req.query
+    const data = await listAppointments(req.user.id, { familyMemberId, status, from, to, accompaniedByUserId, view })
     res.json({ data })
   } catch (err) { next(err) }
 })
@@ -24,6 +25,13 @@ router.post('/', async (req, res, next) => {
   try {
     const data = await createAppointment(req.user.id, req.body)
     res.status(201).json({ data })
+  } catch (err) { next(err) }
+})
+
+router.get('/:id/pre-appointment-report', async (req, res, next) => {
+  try {
+    const data = await getPreAppointmentReport(req.user.id, req.params.id)
+    res.json({ data })
   } catch (err) { next(err) }
 })
 

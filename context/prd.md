@@ -2,6 +2,8 @@
 
 > **For AI coding assistants (Claude, Cursor):** This is the single source of truth for the FamCare product. Reference this file for all feature decisions, architecture choices, naming conventions, and scope boundaries.
 
+If implementation or a bugfix **changes** scope, APIs, or product behavior relative to this document, record a short entry in [DECISION_LOG.md](DECISION_LOG.md) so the team does not lose context.
+
 ---
 
 ## What Is FamCare?

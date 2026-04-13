@@ -1,0 +1,19 @@
+meta {
+  name: PDPA delete account (me)
+  type: http
+  seq: 99
+}
+
+delete {
+  url: http://localhost:3000/api/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: REPLACE_BEFORE_RUN
+}
+
+docs {
+  Replace x-line-userid with a disposable test LINE id. Destroys all owned data; same id recreates empty user on next request.
+}

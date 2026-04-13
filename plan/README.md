@@ -8,6 +8,8 @@ Use these files **in order** (Phase 1 → Phase 17). Each phase is a **small, wo
 - [context/tech_stack.md](../context/tech_stack.md) — stack choices
 - [context/backend.md](../context/backend.md) — structure and conventions
 - [context/schema.md](../context/schema.md) — data model (Prisma source of truth for fields)
+- [context/DECISION_LOG.md](../context/DECISION_LOG.md) — **scope changes, spec drift, and meaningful bugfix behavior** (keep in sync when you diverge from plan or PRD)
+- [context/GO_LIVE_CHECKLIST.md](../context/GO_LIVE_CHECKLIST.md) — **pre-production verification** (what to still check or run before go-live)
 
 **Backend code location:** [`famcare-backend/`](../famcare-backend/)
 

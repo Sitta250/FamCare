@@ -7,6 +7,7 @@ import {
   updateFamilyMember,
   deleteFamilyMember,
 } from '../services/familyMemberService.js'
+import { getEmergencyInfo } from '../services/emergencyInfoService.js'
 import familyAccessRouter from './familyAccess.js'
 
 const router = Router()
@@ -24,6 +25,14 @@ router.post('/', async (req, res, next) => {
   try {
     const data = await createFamilyMember(req.user.id, req.body)
     res.status(201).json({ data })
+  } catch (err) { next(err) }
+})
+
+// Sub-routes before generic `/:id` so paths like `.../emergency-info` are not captured as ids
+router.get('/:id/emergency-info', async (req, res, next) => {
+  try {
+    const data = await getEmergencyInfo(req.user.id, req.params.id)
+    res.json({ data })
   } catch (err) { next(err) }
 })
 

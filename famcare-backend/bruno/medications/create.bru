@@ -1,0 +1,26 @@
+meta {
+  name: Create Medication
+  type: http
+  seq: 1
+}
+
+post {
+  url: http://localhost:3000/api/v1/medications
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: test-line-1
+}
+
+body:json {
+  {
+    "familyMemberId": "{{memberId}}",
+    "name": "Metformin",
+    "dosage": "500mg",
+    "frequency": "twice daily",
+    "startDate": "2026-01-01",
+    "reminderTimesJson": "[\"08:00\",\"20:00\"]"
+  }
+}

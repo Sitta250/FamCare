@@ -35,6 +35,7 @@ model FamilyMember {
   photoUrl              String?
   preferredHospital     String?
   missedDoseAlertsEnabled Boolean @default(true)
+  isDeleted             Boolean   @default(false)
   createdAt             DateTime  @default(now())
 
   owner             User               @relation("OwnedMembers", fields: [ownerId], references: [id], onDelete: Restrict)
@@ -88,9 +89,10 @@ model Appointment {
   reason              String?
   preNotes            String?
   postNotes           String?
-  whoBringsNote       String?
-  status              AppointmentStatus @default(UPCOMING)
-  createdAt           DateTime          @default(now())
+  whoBringsNote         String?
+  reminderOffsetsJson   String?
+  status                AppointmentStatus @default(UPCOMING)
+  createdAt             DateTime          @default(now())
 
   familyMember  FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   accompaniedBy User?        @relation("AccompaniedBy", fields: [accompaniedByUserId], references: [id])
@@ -123,8 +125,9 @@ model Medication {
   active            Boolean   @default(true)
   createdAt         DateTime  @default(now())
 
-  familyMember FamilyMember    @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+  familyMember FamilyMember        @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
   logs         MedicationLog[]
+  schedules    MedicationSchedule[]
 }
 
 model MedicationLog {
@@ -134,6 +137,16 @@ model MedicationLog {
   status         MedicationStatus
   takenAt        DateTime
   createdAt      DateTime         @default(now())
+
+  medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
+}
+
+model MedicationSchedule {
+  id                 String  @id @default(cuid())
+  medicationId       String
+  timeLocal          String  // "HH:mm" Bangkok time
+  lastSentDate       String? // "YYYY-MM-DD" Bangkok — prevents duplicate reminder per day
+  lastMissedSentDate String? // "YYYY-MM-DD" Bangkok — prevents duplicate missed alert per day
 
   medication Medication @relation(fields: [medicationId], references: [id], onDelete: Cascade)
 }
@@ -197,6 +210,7 @@ enum ReminderType {
   TWO_DAYS
   ONE_DAY
   TWO_HOURS
+  CUSTOM
 }
 
 enum MedicationStatus {
