@@ -37,6 +37,14 @@
 
 ## Log
 
+### 2026-04-14 — Voice note transcription deferred for symptom logs
+
+- **Type:** scope-add
+- **Original intent:** [symptom-and-note-log-plan.md](../execution/features/symptom-and-note-log-plan.md) defines photo upload and voice note upload for symptom logs, and explicitly marks transcription as a stretch goal to defer.
+- **What we did instead:** Implemented voice note file upload and URL storage only. [`symptomLogService.js`](../famcare-backend/src/services/symptomLogService.js) persists `voiceNoteUrl`, but no speech-to-text extraction runs during upload or afterward.
+- **Why:** Transcription would require a separate AI provider integration, async job handling, and cost/operational decisions that are outside this sprint. The current design keeps the data model and API ready for a later async transcription step.
+- **Code / links:** [`symptomLogService.js`](../famcare-backend/src/services/symptomLogService.js), [`symptomLogs.js`](../famcare-backend/src/routes/symptomLogs.js), [`symptom-and-note-log-plan.md`](../execution/features/symptom-and-note-log-plan.md)
+
 ### 2026-04-12 — Phase 17 verification pass (backend complete)
 
 - **Type:** ops / bugfix-behavior

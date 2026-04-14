@@ -208,7 +208,8 @@ model SymptomLog {
   description    String
   severity       Int
   note           String?
-  attachmentUrl  String?
+  photoUrl       String?
+  voiceNoteUrl   String?
   loggedAt       DateTime
   createdAt      DateTime @default(now())
 
