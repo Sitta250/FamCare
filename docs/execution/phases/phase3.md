@@ -3,7 +3,7 @@
 ## Goal
 
 - Global JSON error shape (already have `errorHandler`—align thrown errors with `{ error, code }` and `status`).
-- Middleware reads **`x-line-userid`** (LINE’s user id string), upserts **`User`** by `lineUserId`, attaches internal user id as **`req.userId`** (or `req.user`).
+- Middleware reads **`x-line-userid`** (LINE’s user id string), upserts **`User`** by `lineUserId`, and attaches the user record as **`req.user`**.
 - **`GET /api/v1/me`** returns `{ data: user }` with safe fields.
 
 ## Prerequisites

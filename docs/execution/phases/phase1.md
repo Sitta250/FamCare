@@ -12,7 +12,7 @@ A minimal **Node.js + Express** app under `famcare-backend/` that starts cleanly
 ## Step-by-step
 
 1. **Confirm folder layout**
-   - Backend lives in `famcare-backend/` (see [context/backend.md](../context/backend.md)).
+   - Backend lives in `famcare-backend/` (see [docs/architecture/backend.md](../../architecture/backend.md)).
 
 2. **Dependencies (Phase 1 only)**
    - `package.json`: `"type": "module"`, dependencies: `express`, `dotenv`; dev: `nodemon`.

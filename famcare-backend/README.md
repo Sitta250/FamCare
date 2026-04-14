@@ -1,6 +1,6 @@
 # FamCare backend
 
-Node.js + Express API. See [`../plan/`](../plan/) for phased build instructions.
+Node.js + Express API. See [`../docs/execution/phases/`](../docs/execution/phases/) for phased build instructions.
 
 ## Phase 1 — local run
 
@@ -40,4 +40,4 @@ Open the [`bruno/`](bruno/) collection in [Bruno](https://www.usebruno.com/). Re
 
 ## Before production
 
-Implementation follows the [phase playbook](../plan/README.md), but **production readiness** still requires environment-specific checks (LINE HTTPS webhook, secrets, staging smoke tests, PDPA process, etc.). Use the repo checklist: **[context/GO_LIVE_CHECKLIST.md](../context/GO_LIVE_CHECKLIST.md)**.
+Implementation follows the [phase playbook](../docs/execution/phases/README.md), but **production readiness** still requires environment-specific checks (LINE HTTPS webhook, secrets, staging smoke tests, PDPA process, etc.). Use the repo checklist: **[GO_LIVE_CHECKLIST.md](../docs/operations/GO_LIVE_CHECKLIST.md)**.

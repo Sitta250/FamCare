@@ -1,6 +1,6 @@
 # FamCare — go-live checklist (pre-production verification)
 
-**Status:** The phased backend build ([plan/README.md](../plan/README.md)) is **implemented** through Phase 17. This document lists what you still **verify or run** before treating the system as **production-ready** for real users. Passing local dev checks does not replace environment-specific and operational validation.
+**Status:** The phased backend build ([phase playbook](../execution/phases/README.md)) is **implemented** through Phase 17. This document lists what you still **verify or run** before treating the system as **production-ready** for real users. Passing local dev checks does not replace environment-specific and operational validation.
 
 ---
 
@@ -28,6 +28,9 @@
 
 - [ ] Set `CLOUDINARY_URL` in production; confirm document create with a real HTTPS image URL works end-to-end.
 - [ ] Decide OCR behavior: `OCR_DISABLED=true` vs `OCR_PROVIDER=openai` with `OPENAI_API_KEY` (see [`famcare-backend/src/services/ocrService.js`](../famcare-backend/src/services/ocrService.js)). Verify `ocrText` is populated when OCR is enabled.
+- [ ] Current state reminder: OCR is intentionally disabled (`OCR_DISABLED=true`, no `OCR_PROVIDER`). Before go-live, revisit and either keep OCR off by design or enable it with explicit provider config + validation test.
+- [ ] Run one real OCR smoke test using an actual Thai document image (not mocked) after enabling OCR in staging.
+- [ ] Confirm Prisma document migration is applied on a reachable staging/prod DB via deploy flow (`npx prisma migrate deploy`) since local `migrate dev` previously hit Railway connectivity error (P1001).
 
 ---
 
@@ -42,7 +45,7 @@
 ## Data, PDPA, and account lifecycle
 
 - [ ] Run `DELETE /api/v1/me` on **staging** with a test `x-line-userid`; confirm response `{ "data": { "deleted": true } }` and that owned data is removed (use DB console or Prisma Studio against staging DB only).
-- [ ] Confirm **privacy policy**, consent copy, and data subject flows align with [prd.md](prd.md) PDPA section (product/legal work—not only backend).
+- [ ] Confirm **privacy policy**, consent copy, and data subject flows align with [prd.md](../product/prd.md) PDPA section (product/legal work—not only backend).
 - [ ] Document internal process for **data breach notification** within 72 hours if required.
 
 ---
@@ -69,9 +72,9 @@ Add rows above when you add these to scope.
 
 ---
 
-## PRD coverage: backend vs full product ([prd.md](prd.md))
+## PRD coverage: backend vs full product ([prd.md](../product/prd.md))
 
-**Summary:** The phased backend ([plan/README.md](../plan/README.md), Phase 17) delivers **APIs, data model, LINE webhook/push hooks, and crons** for most MVP domains. It does **not** by itself satisfy every **product-level** promise in the PRD (LINE chat UX, web dashboard, image/PDF exports, freemium enforcement, full coordination suite). Use this section to set expectations before go-live.
+**Summary:** The phased backend ([phase playbook](../execution/phases/README.md), Phase 17) delivers **APIs, data model, LINE webhook/push hooks, and crons** for most MVP domains. It does **not** by itself satisfy every **product-level** promise in the PRD (LINE chat UX, web dashboard, image/PDF exports, freemium enforcement, full coordination suite). Use this section to set expectations before go-live.
 
 ### Where the backend largely aligns
 
@@ -113,7 +116,7 @@ Add rows above when you add these to scope.
 
 | Doc | Use |
 |-----|-----|
-| [prd.md](prd.md) | Product scope and PDPA expectations |
-| [backend.md](backend.md) | API conventions |
-| [DECISION_LOG.md](DECISION_LOG.md) | Implementation vs spec drift |
+| [prd.md](../product/prd.md) | Product scope and PDPA expectations |
+| [backend.md](../architecture/backend.md) | API conventions |
+| [DECISION_LOG.md](../decisions/DECISION_LOG.md) | Implementation vs spec drift |
 | [famcare-backend/README.md](../famcare-backend/README.md) | Local run and deploy commands |

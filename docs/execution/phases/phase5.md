@@ -35,7 +35,7 @@ Owner can **grant** CAREGIVER or VIEWER on a specific `FamilyMember`; **list** g
 
 ## Verify
 
-Three LINE user ids in headers: owner, caregiver, stranger. Confirm access matrix from [context/schema.md](../context/schema.md).
+Three LINE user ids in headers: owner, caregiver, stranger. Confirm access matrix from [docs/architecture/schema.md](../../architecture/schema.md).
 
 ## Next
 

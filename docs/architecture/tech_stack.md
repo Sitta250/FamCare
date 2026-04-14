@@ -3,7 +3,7 @@
 ## Backend
 - **Runtime:** Node.js
 - **Framework:** Express
-- **Language:** JavaScript (CommonJS or ESM, be consistent)
+- **Language:** JavaScript (ESM)
 - **ORM:** Prisma — use this for all DB queries, avoid raw SQL unless necessary
 - **LINE integration:** `@line/bot-sdk` — all webhook handling goes through this
 

@@ -41,4 +41,4 @@
 
 ## Done
 
-Backend MVP implementation complete per [context/prd.md](../context/prd.md) scope for API + LINE.
+Backend MVP implementation complete per [docs/product/prd.md](../../product/prd.md) scope for API + LINE.

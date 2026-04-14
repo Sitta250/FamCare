@@ -7,6 +7,11 @@ import {
   updateHealthMetric,
   deleteHealthMetric,
 } from '../services/healthMetricService.js'
+import {
+  listThresholds,
+  upsertThreshold,
+  deleteThreshold,
+} from '../services/healthMetricThresholdService.js'
 
 const router = Router()
 
@@ -24,6 +29,27 @@ router.post('/', async (req, res, next) => {
   try {
     const data = await createHealthMetric(req.user.id, req.body)
     res.status(201).json({ data })
+  } catch (err) { next(err) }
+})
+
+router.get('/:memberId/thresholds', async (req, res, next) => {
+  try {
+    const data = await listThresholds(req.user.id, req.params.memberId)
+    res.json({ data })
+  } catch (err) { next(err) }
+})
+
+router.put('/:memberId/thresholds/:type', async (req, res, next) => {
+  try {
+    const data = await upsertThreshold(req.user.id, req.params.memberId, req.params.type, req.body)
+    res.json({ data })
+  } catch (err) { next(err) }
+})
+
+router.delete('/:memberId/thresholds/:type', async (req, res, next) => {
+  try {
+    await deleteThreshold(req.user.id, req.params.memberId, req.params.type)
+    res.status(204).send()
   } catch (err) { next(err) }
 })
 

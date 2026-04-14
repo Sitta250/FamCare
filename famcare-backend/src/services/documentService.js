@@ -2,9 +2,10 @@ import { prisma } from '../lib/prisma.js'
 import { assertCanReadMember, assertCanWriteMember } from './accessService.js'
 import { notifyOwnerIfCaregiver } from './caregiverNotifyService.js'
 import { extractText } from './ocrService.js'
-import { toBangkokISO } from '../utils/datetime.js'
+import { deleteByPublicId, uploadBuffer } from './cloudinaryService.js'
+import { toBangkokISO, utcInstantFromBangkokYmdHm } from '../utils/datetime.js'
 
-const HTTPS_URL_RE = /^https:\/\/.+/
+const DOCUMENT_TYPES = new Set(['PRESCRIPTION', 'LAB_RESULT', 'DOCTOR_NOTE', 'BILL', 'XRAY', 'OTHER'])
 
 function formatDoc(d) {
   return {
@@ -13,17 +14,27 @@ function formatDoc(d) {
   }
 }
 
-export async function listDocuments(actorUserId, { familyMemberId, q, from, to }) {
+export async function listDocuments(actorUserId, { familyMemberId, keyword, from, to, date }) {
   if (!familyMemberId || typeof familyMemberId !== 'string' || !familyMemberId.trim()) {
     throw Object.assign(new Error('Query parameter familyMemberId is required'), { status: 400, code: 'BAD_REQUEST' })
   }
   await assertCanReadMember(actorUserId, familyMemberId)
 
   const where = { familyMemberId }
-  if (q) {
-    where.ocrText = { contains: q, mode: 'insensitive' }
+  if (keyword) {
+    where.OR = [
+      { ocrText: { contains: keyword, mode: 'insensitive' } },
+      { tags: { contains: keyword, mode: 'insensitive' } },
+    ]
   }
-  if (from || to) {
+
+  // Exact Bangkok calendar date wins over the broader from/to range if both are provided.
+  if (date) {
+    where.createdAt = {
+      gte: utcInstantFromBangkokYmdHm(date, '00:00'),
+      lte: utcInstantFromBangkokYmdHm(date, '23:59'),
+    }
+  } else if (from || to) {
     where.createdAt = {}
     if (from) where.createdAt.gte = new Date(from)
     if (to) where.createdAt.lte = new Date(to)
@@ -37,28 +48,36 @@ export async function listDocuments(actorUserId, { familyMemberId, q, from, to }
 }
 
 export async function createDocument(actorUserId, body) {
-  const { familyMemberId, type, cloudinaryUrl } = body
+  const { familyMemberId, type, tags, file } = body
 
   if (!familyMemberId) throw Object.assign(new Error('familyMemberId is required'), { status: 400, code: 'BAD_REQUEST' })
   if (!type) throw Object.assign(new Error('type is required'), { status: 400, code: 'BAD_REQUEST' })
-  if (!cloudinaryUrl || !HTTPS_URL_RE.test(cloudinaryUrl)) {
-    throw Object.assign(new Error('cloudinaryUrl must be a valid HTTPS URL'), { status: 400, code: 'BAD_REQUEST' })
-  }
+  if (!DOCUMENT_TYPES.has(type)) throw Object.assign(new Error('type is invalid'), { status: 400, code: 'BAD_REQUEST' })
+  if (!file?.buffer) throw Object.assign(new Error('file is required'), { status: 400, code: 'BAD_REQUEST' })
 
   await assertCanWriteMember(actorUserId, familyMemberId)
+
+  const resourceType = file.mimetype === 'application/pdf' ? 'raw' : 'image'
+  const upload = await uploadBuffer(file.buffer, {
+    folder: `famcare/documents/${familyMemberId}`,
+    resourceType,
+    originalname: file.originalname,
+  })
 
   const doc = await prisma.document.create({
     data: {
       familyMemberId,
       addedByUserId: actorUserId,
       type,
-      cloudinaryUrl,
+      cloudinaryUrl: upload.secure_url,
+      cloudinaryPublicId: upload.public_id,
       ocrText: null,
+      tags: typeof tags === 'string' && tags.trim() ? tags.trim() : null,
     },
   })
 
   // Run OCR asynchronously — update doc when done
-  extractText(cloudinaryUrl).then(async (ocrText) => {
+  extractText(upload.secure_url).then(async (ocrText) => {
     if (ocrText) {
       await prisma.document.update({ where: { id: doc.id }, data: { ocrText } })
     }
@@ -85,4 +104,9 @@ export async function deleteDocument(actorUserId, documentId) {
   if (!doc) throw Object.assign(new Error('Document not found'), { status: 404, code: 'NOT_FOUND' })
   await assertCanWriteMember(actorUserId, doc.familyMemberId)
   await prisma.document.delete({ where: { id: documentId } })
+
+  if (doc.cloudinaryPublicId) {
+    deleteByPublicId(doc.cloudinaryPublicId)
+      .catch(err => console.error('[cloudinary] delete failed:', err.message))
+  }
 }

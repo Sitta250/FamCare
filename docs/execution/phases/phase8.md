@@ -6,7 +6,7 @@
 - **`reminderDispatchService`**: find `Reminder` rows where `sent = false` and `scheduledAt <= now()`, send push, set `sent = true` (idempotent: use transaction or `updateMany` with condition).
 - **`node-cron`**: run every minute (or 30s in dev) calling dispatch.
 
-Recipients for each reminder: **`FamilyMember.owner`** LINE id **plus** all **CAREGIVER** `FamilyAccess` for that member (see [context/schema.md](../context/schema.md) notification table). Optional: include VIEWER—PRD says owner + caregivers for reminders; **exclude VIEWER** unless product changes.
+Recipients for each reminder: **`FamilyMember.owner`** LINE id **plus** all **CAREGIVER** `FamilyAccess` for that member (see [docs/architecture/schema.md](../../architecture/schema.md) notification table). Optional: include VIEWER—PRD says owner + caregivers for reminders; **exclude VIEWER** unless product changes.
 
 ## Prerequisites
 

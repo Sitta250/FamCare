@@ -2,7 +2,7 @@
 
 ## Goal
 
-`prisma/schema.prisma` matches [context/schema.md](../context/schema.md), plus **minimal extensions** below. Migrations apply cleanly; Prisma Client generates; singleton client in `src/lib/prisma.js`.
+`prisma/schema.prisma` aligns with [docs/architecture/schema.md](../../architecture/schema.md), plus **minimal extensions** below. Treat `prisma/schema.prisma` as runtime source of truth. Migrations apply cleanly; Prisma Client generates; singleton client in `src/lib/prisma.js`.
 
 ## Prerequisites
 
@@ -26,7 +26,7 @@ Use `onDelete: Cascade` where a child cannot exist without the parent (e.g. remi
 
 1. Add npm deps: `@prisma/client`, `prisma` (dev).
 2. Add scripts to `package.json`: `"prisma:generate": "prisma generate"`, `"prisma:migrate": "prisma migrate dev"`.
-3. Create `prisma/schema.prisma`: `generator` + `datasource postgresql` + all models/enums from [context/schema.md](../context/schema.md) **plus** extensions above.
+3. Create `prisma/schema.prisma`: `generator` + `datasource postgresql` + all models/enums from [docs/architecture/schema.md](../../architecture/schema.md) **plus** extensions above.
 4. Set `DATABASE_URL` in `.env` (copy from `.env.example`).
 5. Run:
    ```bash

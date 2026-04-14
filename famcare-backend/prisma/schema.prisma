@@ -44,6 +44,7 @@ model FamilyMember {
   appointments      Appointment[]
   medications       Medication[]
   healthMetrics     HealthMetric[]
+  metricThresholds  MetricThreshold[]
   documents         Document[]
   symptomLogs       SymptomLog[]
   emergencyContacts EmergencyContact[]
@@ -159,12 +160,31 @@ model HealthMetric {
   addedByUserId  String
   type           MetricType
   value          Float
+  value2         Float?
   unit           String
+  label          String?
   note           String?
   measuredAt     DateTime
   createdAt      DateTime   @default(now())
 
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
+model MetricThreshold {
+  id             String     @id @default(cuid())
+  familyMemberId String
+  type           MetricType
+  unit           String
+  minValue       Float?
+  maxValue       Float?
+  minValue2      Float?
+  maxValue2      Float?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+
+  @@unique([familyMemberId, type])
 }
 
 model Document {
@@ -173,7 +193,9 @@ model Document {
   addedByUserId  String
   type           DocumentType
   cloudinaryUrl  String
+  cloudinaryPublicId String?
   ocrText        String?
+  tags           String?
   createdAt      DateTime     @default(now())
 
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)

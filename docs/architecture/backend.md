@@ -44,7 +44,7 @@ PORT=3000
 
 ## API Conventions
 - REST endpoints: `GET /api/v1/family`, `POST /api/v1/appointments`, etc.
-- Auth header: `x-line-userid: <lineUserId>` — middleware extracts and attaches to `req.userId`
+- Auth header: `x-line-userid: <lineUserId>` — middleware extracts and attaches to `req.user`
 - Error responses: `{ error: string, code: string }`
 - Success responses: `{ data: any }`
 
@@ -55,12 +55,13 @@ PORT=3000
 - All message parsing → service calls happen in `/webhook/handler.js`
 
 ## Database
+- Runtime schema source of truth: `famcare-backend/prisma/schema.prisma`
 - ORM: Prisma — never write raw SQL unless Prisma can't handle it
 - After any schema change: `npx prisma migrate dev --name <description>`
 - After pulling from git: `npx prisma generate` to sync the client
 
 ## Key Data Relationships
-See `SCHEMA.md` for the full Prisma schema and ERD. Summary:
+See `famcare-backend/prisma/schema.prisma` for runtime truth and `docs/architecture/schema.md` for the planning ERD. Summary:
 - `User` owns `FamilyMember` records (one-to-many)
 - `FamilyAccess` grants a second user Caregiver or Viewer access to a specific `FamilyMember` — not the whole account
 - All child records (Appointment, Medication, HealthMetric, Document, SymptomLog) belong to a `FamilyMember` and track `addedByUserId` for caregiver attribution
@@ -80,6 +81,6 @@ See `SCHEMA.md` for the full Prisma schema and ERD. Summary:
 
 ## Related docs
 
-- [prd.md](prd.md) — product scope
-- [schema.md](schema.md) — intended data model (Prisma in repo may evolve; note drift in [DECISION_LOG.md](DECISION_LOG.md))
-- [DECISION_LOG.md](DECISION_LOG.md) — log when behavior or scope differs from PRD/plan (bug fixes, new fields, stack swaps)
+- [prd.md](../product/prd.md) — product scope
+- [schema.md](schema.md) — intended data model (Prisma in repo may evolve; note drift in [DECISION_LOG.md](../decisions/DECISION_LOG.md))
+- [DECISION_LOG.md](../decisions/DECISION_LOG.md) — log when behavior or scope differs from PRD/plan (bug fixes, new fields, stack swaps)

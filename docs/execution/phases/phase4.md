@@ -32,7 +32,7 @@ Owner-only CRUD for **creating** members they own; list returns owned members (i
    - Thin handlers: parse body → service → `{ data }`.
 
 4. **Response formatting**
-   - Dates as Bangkok strings per [context/backend.md](../context/backend.md).
+   - Dates as Bangkok strings per [docs/architecture/backend.md](../../architecture/backend.md).
 
 5. **Bruno**
    - Add `bruno/family-members/` requests for happy path + 403 (wrong user).

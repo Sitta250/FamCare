@@ -2,7 +2,7 @@
 
 > **For AI coding assistants (Claude, Cursor):** This is the single source of truth for the FamCare product. Reference this file for all feature decisions, architecture choices, naming conventions, and scope boundaries.
 
-If implementation or a bugfix **changes** scope, APIs, or product behavior relative to this document, record a short entry in [DECISION_LOG.md](DECISION_LOG.md) so the team does not lose context.
+If implementation or a bugfix **changes** scope, APIs, or product behavior relative to this document, record a short entry in [DECISION_LOG.md](../decisions/DECISION_LOG.md) so the team does not lose context.
 
 ---
 
@@ -71,7 +71,7 @@ Each user has their own independent account. There is no shared family pool. A u
 - Access is per family member, not per account — a sibling can be Caregiver for "Dad" without seeing the owner's kids
 - Owner is notified via LINE push whenever a Caregiver adds any record
 - Owner can revoke access at any time
-- See `SCHEMA.md` for the `FamilyAccess` table implementation
+- See `docs/architecture/schema.md` for the `FamilyAccess` table implementation
 
 ---
 
