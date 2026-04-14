@@ -8,6 +8,7 @@ import {
   deleteMedication,
   listMedicationLogs,
   createMedicationLog,
+  getMedicationAdherence,
   updateMedicationSchedule,
   getMedicationSchedule,
 } from '../services/medicationService.js'
@@ -18,8 +19,8 @@ router.use(requireLineUser)
 
 router.get('/', async (req, res, next) => {
   try {
-    const { familyMemberId } = req.query
-    const data = await listMedications(req.user.id, familyMemberId)
+    const { familyMemberId, active } = req.query
+    const data = await listMedications(req.user.id, familyMemberId, { active })
     res.json({ data })
   } catch (err) { next(err) }
 })
@@ -34,7 +35,13 @@ router.post('/', async (req, res, next) => {
 // Sub-routes before generic `/:id` (e.g. avoid treating "logs" as a medication id)
 router.get('/:id/logs', async (req, res, next) => {
   try {
-    const data = await listMedicationLogs(req.user.id, req.params.id)
+    const { from, to, limit, cursor } = req.query
+    const data = await listMedicationLogs(req.user.id, req.params.id, {
+      from,
+      to,
+      limit,
+      cursor,
+    })
     res.json({ data })
   } catch (err) { next(err) }
 })
@@ -57,6 +64,14 @@ router.put('/:id/schedule', async (req, res, next) => {
   try {
     const { times } = req.body
     const data = await updateMedicationSchedule(req.user.id, req.params.id, times)
+    res.json({ data })
+  } catch (err) { next(err) }
+})
+
+router.get('/:id/adherence', async (req, res, next) => {
+  try {
+    const { from, to } = req.query
+    const data = await getMedicationAdherence(req.user.id, req.params.id, { from, to })
     res.json({ data })
   } catch (err) { next(err) }
 })

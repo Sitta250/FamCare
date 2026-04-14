@@ -9,7 +9,7 @@ import {
 // Minutes after scheduled time before a dose is considered missed
 const MISSED_WINDOW_MINUTES = 120
 
-async function getRecipients(familyMemberId) {
+export async function getRecipients(familyMemberId) {
   const member = await prisma.familyMember.findUnique({
     where: { id: familyMemberId },
     select: {

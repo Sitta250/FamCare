@@ -2,6 +2,7 @@ import { messagingApi } from '@line/bot-sdk'
 import { prisma } from '../lib/prisma.js'
 import { findOrCreateByLineUserId } from '../services/userService.js'
 import { createAppointment } from '../services/appointmentService.js'
+import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medicationService.js'
 
 let lineClient = null
 
@@ -97,11 +98,34 @@ async function handlePostback(event) {
   }
 
   if (action === 'log_medication') {
-    return reply(
-      client,
-      event.replyToken,
-      'กรุณาบันทึกการกินยาผ่านแอปพลิเคชัน FamCare'
-    )
+    if (!data.medicationId) {
+      return reply(client, event.replyToken, 'กรุณาระบุ medicationId')
+    }
+
+    if (!MEDICATION_LOG_STATUSES.has(data.status)) {
+      return reply(client, event.replyToken, 'สถานะไม่ถูกต้อง ต้องเป็น TAKEN, MISSED หรือ SKIPPED')
+    }
+
+    try {
+      const user = await findOrCreateByLineUserId(lineUserId)
+      const medication = await prisma.medication.findUnique({
+        where: { id: data.medicationId },
+        select: { name: true },
+      })
+      const log = await createMedicationLog(user.id, data.medicationId, {
+        status: data.status,
+        takenAt: data.takenAt ?? new Date().toISOString(),
+      })
+
+      return reply(
+        client,
+        event.replyToken,
+        `✅ บันทึกการกินยา ${medication?.name ?? data.medicationId} (${log.status}) เรียบร้อยแล้ว`
+      )
+    } catch (err) {
+      console.error('[webhook] log_medication failed:', err.message)
+      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
+    }
   }
 
   console.log(`[webhook] unhandled postback action: ${action}`)

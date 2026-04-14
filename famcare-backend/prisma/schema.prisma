@@ -120,6 +120,8 @@ model Medication {
   startDate         DateTime?
   endDate           DateTime?
   quantity          Int?
+  lowStockThreshold Int?
+  lastLowStockAlertDate String?
   photoUrl          String?
   reminderTimesJson String?
   active            Boolean   @default(true)
