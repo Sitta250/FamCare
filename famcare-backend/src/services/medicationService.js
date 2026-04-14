@@ -73,6 +73,13 @@ function parsePositiveLimit(limit) {
   return Math.min(value, 100)
 }
 
+function currentLowStockAlertDates(now = new Date()) {
+  return new Set([
+    bangkokCalendarDate(now),
+    now.toISOString().slice(0, 10),
+  ])
+}
+
 function resolveBangkokDateWindow({ from, to } = {}, fallbackDays = 30) {
   const fromYmd = parseBangkokDateYmd(from, 'from')
   const toYmd = parseBangkokDateYmd(to, 'to')
@@ -358,7 +365,9 @@ export async function createMedicationLog(actorUserId, medicationId, body) {
 }
 
 export async function checkLowStockAlerts() {
-  const todayStr = bangkokCalendarDate()
+  const now = new Date()
+  const activeAlertDates = currentLowStockAlertDates(now)
+  const todayStr = bangkokCalendarDate(now)
   const meds = await prisma.medication.findMany({
     where: {
       active: true,
@@ -376,7 +385,7 @@ export async function checkLowStockAlerts() {
       !med.active ||
       med.quantity === null ||
       med.lowStockThreshold === null ||
-      med.lastLowStockAlertDate === todayStr ||
+      activeAlertDates.has(med.lastLowStockAlertDate) ||
       med.quantity > med.lowStockThreshold
     ) {
       continue
