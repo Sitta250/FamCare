@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { sendLinePushToUser } from './linePushService.js'
+import { parseNotificationPrefs } from './familyAccessService.js'
 import {
   bangkokCalendarDate,
   bangkokClockHm,
@@ -9,7 +10,7 @@ import {
 // Minutes after scheduled time before a dose is considered missed
 const MISSED_WINDOW_MINUTES = 120
 
-export async function getRecipients(familyMemberId) {
+export async function getRecipients(familyMemberId, eventType = 'medicationReminders') {
   const member = await prisma.familyMember.findUnique({
     where: { id: familyMemberId },
     select: {
@@ -17,7 +18,10 @@ export async function getRecipients(familyMemberId) {
       owner: { select: { lineUserId: true } },
       accessList: {
         where: { role: 'CAREGIVER' },
-        select: { grantedTo: { select: { lineUserId: true } } },
+        select: {
+          notificationPrefs: true,
+          grantedTo: { select: { lineUserId: true } },
+        },
       },
     },
   })
@@ -25,7 +29,10 @@ export async function getRecipients(familyMemberId) {
 
   const recipients = [member.owner.lineUserId]
   for (const a of member.accessList) {
-    recipients.push(a.grantedTo.lineUserId)
+    const prefs = parseNotificationPrefs(a.notificationPrefs)
+    if (prefs[eventType]) {
+      recipients.push(a.grantedTo.lineUserId)
+    }
   }
   return { recipients: [...new Set(recipients)], missedAlertsEnabled: member.missedDoseAlertsEnabled }
 }
@@ -53,7 +60,7 @@ export async function dispatchMedicationReminders() {
     if (!med.active) continue
 
     try {
-      const { recipients } = await getRecipients(med.familyMemberId)
+      const { recipients } = await getRecipients(med.familyMemberId, 'medicationReminders')
       const text = `💊 เตือนกินยา: ${med.name}${med.dosage ? ` (${med.dosage})` : ''}\nสำหรับ: ${med.familyMember.name}\nเวลา: ${schedule.timeLocal}`
 
       for (const lineUserId of recipients) {
@@ -92,7 +99,7 @@ export async function dispatchMedicationReminders() {
     if (!med.active) continue
 
     try {
-      const { recipients, missedAlertsEnabled } = await getRecipients(med.familyMemberId)
+      const { recipients, missedAlertsEnabled } = await getRecipients(med.familyMemberId, 'missedDoseAlerts')
       if (!missedAlertsEnabled) continue
 
       const windowStart = utcInstantFromBangkokYmdHm(todayStr, schedule.timeLocal)

@@ -15,6 +15,10 @@ const mockGetAccessRoleForMember = jest.fn()
 const mockAssertOwnerForMember   = jest.fn()
 
 const mockFindOrCreateByLineUserId = jest.fn()
+const mockGrantAccess = jest.fn()
+const mockListAccessForMember = jest.fn()
+const mockRevokeAccess = jest.fn()
+const mockUpdateNotificationPrefs = jest.fn()
 
 // ── Register module mocks before any dynamic imports ─────────────────────────
 jest.unstable_mockModule('../lib/prisma.js', () => ({
@@ -43,6 +47,13 @@ jest.unstable_mockModule('../services/accessService.js', () => ({
 
 jest.unstable_mockModule('../services/userService.js', () => ({
   findOrCreateByLineUserId: mockFindOrCreateByLineUserId,
+}))
+
+jest.unstable_mockModule('../services/familyAccessService.js', () => ({
+  grantAccess: mockGrantAccess,
+  listAccessForMember: mockListAccessForMember,
+  revokeAccess: mockRevokeAccess,
+  updateNotificationPrefs: mockUpdateNotificationPrefs,
 }))
 
 // ── Dynamic imports (must come after mock registration) ───────────────────────
@@ -85,6 +96,28 @@ function fakeMember(overrides = {}) {
   }
 }
 
+function fakeAccess(overrides = {}) {
+  return {
+    id: 'access-1',
+    grantedByUserId: USER_ID,
+    grantedToUserId: 'user-2',
+    familyMemberId: MEMBER_ID,
+    role: 'CAREGIVER',
+    notificationPrefs: {
+      appointmentReminders: true,
+      medicationReminders: true,
+      missedDoseAlerts: true,
+    },
+    grantedTo: {
+      id: 'user-2',
+      lineUserId: 'U_invitee_123',
+      displayName: 'Helper',
+    },
+    createdAt: new Date('2024-01-01T00:00:00Z'),
+    ...overrides,
+  }
+}
+
 // ── Reset & restore defaults before each test ─────────────────────────────────
 beforeEach(() => {
   jest.clearAllMocks()
@@ -93,6 +126,10 @@ beforeEach(() => {
   mockAssertCanWriteMember.mockResolvedValue('OWNER')
   mockGetAccessRoleForMember.mockResolvedValue('OWNER')
   mockAssertOwnerForMember.mockResolvedValue(undefined)
+  mockGrantAccess.mockResolvedValue(fakeAccess())
+  mockListAccessForMember.mockResolvedValue([fakeAccess()])
+  mockRevokeAccess.mockResolvedValue(undefined)
+  mockUpdateNotificationPrefs.mockResolvedValue(fakeAccess())
 })
 
 // ── POST /api/v1/family-members ───────────────────────────────────────────────
@@ -190,5 +227,98 @@ describe('DELETE /api/v1/family-members/:id', () => {
     const listRes = await request.get('/api/v1/family-members').set(AUTH)
     expect(listRes.status).toBe(200)
     expect(listRes.body.data).toHaveLength(0)
+  })
+})
+
+describe('Family access routes', () => {
+  test('POST /api/v1/family-members/:memberId/access forwards notificationPrefs and returns 201', async () => {
+    const notificationPrefs = {
+      appointmentReminders: false,
+      medicationReminders: true,
+      missedDoseAlerts: false,
+    }
+
+    mockGrantAccess.mockResolvedValue(fakeAccess({ notificationPrefs }))
+
+    const res = await request
+      .post(`/api/v1/family-members/${MEMBER_ID}/access`)
+      .set(AUTH)
+      .send({
+        grantedToLineUserId: 'U_invitee_123',
+        role: 'CAREGIVER',
+        notificationPrefs,
+      })
+
+    expect(res.status).toBe(201)
+    expect(mockGrantAccess).toHaveBeenCalledWith(USER_ID, MEMBER_ID, {
+      grantedToLineUserId: 'U_invitee_123',
+      role: 'CAREGIVER',
+      notificationPrefs,
+    })
+    expect(res.body.data.notificationPrefs).toEqual(notificationPrefs)
+  })
+
+  test('PATCH /api/v1/family-members/:memberId/access/:grantedToUserId returns updated record', async () => {
+    const notificationPrefs = {
+      appointmentReminders: true,
+      medicationReminders: false,
+      missedDoseAlerts: true,
+    }
+
+    mockUpdateNotificationPrefs.mockResolvedValue(fakeAccess({ notificationPrefs }))
+
+    const res = await request
+      .patch(`/api/v1/family-members/${MEMBER_ID}/access/user-2`)
+      .set(AUTH)
+      .send({ notificationPrefs })
+
+    expect(res.status).toBe(200)
+    expect(mockUpdateNotificationPrefs).toHaveBeenCalledWith(
+      USER_ID,
+      MEMBER_ID,
+      'user-2',
+      notificationPrefs
+    )
+    expect(res.body.data.notificationPrefs).toEqual(notificationPrefs)
+  })
+
+  test('PATCH /api/v1/family-members/:memberId/access/:grantedToUserId returns 404 when grant is missing', async () => {
+    mockUpdateNotificationPrefs.mockRejectedValue(
+      Object.assign(new Error('Access grant not found'), { status: 404, code: 'NOT_FOUND' })
+    )
+
+    const res = await request
+      .patch(`/api/v1/family-members/${MEMBER_ID}/access/missing-user`)
+      .set(AUTH)
+      .send({
+        notificationPrefs: {
+          appointmentReminders: true,
+          medicationReminders: true,
+          missedDoseAlerts: false,
+        },
+      })
+
+    expect(res.status).toBe(404)
+    expect(res.body.code).toBe('NOT_FOUND')
+  })
+
+  test('PATCH /api/v1/family-members/:memberId/access/:grantedToUserId returns 403 for non-owner', async () => {
+    mockUpdateNotificationPrefs.mockRejectedValue(
+      Object.assign(new Error('Only the owner can manage access'), { status: 403, code: 'FORBIDDEN' })
+    )
+
+    const res = await request
+      .patch(`/api/v1/family-members/${MEMBER_ID}/access/user-2`)
+      .set(AUTH)
+      .send({
+        notificationPrefs: {
+          appointmentReminders: true,
+          medicationReminders: false,
+          missedDoseAlerts: true,
+        },
+      })
+
+    expect(res.status).toBe(403)
+    expect(res.body.code).toBe('FORBIDDEN')
   })
 })

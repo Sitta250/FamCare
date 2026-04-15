@@ -1,6 +1,11 @@
 import { Router } from 'express'
 import { requireLineUser } from '../middleware/auth.js'
-import { grantAccess, listAccessForMember, revokeAccess } from '../services/familyAccessService.js'
+import {
+  grantAccess,
+  listAccessForMember,
+  revokeAccess,
+  updateNotificationPrefs,
+} from '../services/familyAccessService.js'
 
 // Mounted at /api/v1/family-members/:memberId/access
 const router = Router({ mergeParams: true })
@@ -16,9 +21,25 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { grantedToLineUserId, role } = req.body
-    const data = await grantAccess(req.user.id, req.params.memberId, { grantedToLineUserId, role })
+    const { grantedToLineUserId, role, notificationPrefs } = req.body
+    const data = await grantAccess(req.user.id, req.params.memberId, {
+      grantedToLineUserId,
+      role,
+      notificationPrefs,
+    })
     res.status(201).json({ data })
+  } catch (err) { next(err) }
+})
+
+router.patch('/:grantedToUserId', async (req, res, next) => {
+  try {
+    const data = await updateNotificationPrefs(
+      req.user.id,
+      req.params.memberId,
+      req.params.grantedToUserId,
+      req.body.notificationPrefs,
+    )
+    res.json({ data })
   } catch (err) { next(err) }
 })
 

@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma.js'
 import { sendLinePushToUser } from './linePushService.js'
+import { parseNotificationPrefs } from './familyAccessService.js'
 import { toBangkokISO } from '../utils/datetime.js'
 
 export async function dispatchDueReminders() {
@@ -38,7 +39,10 @@ export async function dispatchDueReminders() {
       const recipients = new Map()
       recipients.set(familyMember.owner.id, familyMember.owner.lineUserId)
       for (const access of familyMember.accessList) {
-        recipients.set(access.grantedTo.id, access.grantedTo.lineUserId)
+        const prefs = parseNotificationPrefs(access.notificationPrefs)
+        if (prefs.appointmentReminders) {
+          recipients.set(access.grantedTo.id, access.grantedTo.lineUserId)
+        }
       }
 
       const timeStr = toBangkokISO(appointment.appointmentAt)

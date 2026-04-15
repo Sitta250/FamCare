@@ -179,6 +179,72 @@ describe('dispatchDueReminders — window and delivery', () => {
     expect(lte).toBeInstanceOf(Date)
     expect(Math.abs(lte.getTime() - expectedMs)).toBeLessThan(2000)
   })
+
+  test('skips caregivers who opted out of appointment reminders', async () => {
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: LINE_ID },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: JSON.stringify({ appointmentReminders: false }),
+                grantedTo: { id: 'caregiver-1', lineUserId: 'U_caregiver_1' },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePush).toHaveBeenCalledWith(LINE_ID, expect.stringContaining('Checkup'))
+    expect(mockSendLinePush).not.toHaveBeenCalledWith('U_caregiver_1', expect.any(String))
+  })
+
+  test('treats null caregiver notificationPrefs as all enabled', async () => {
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: LINE_ID },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: null,
+                grantedTo: { id: 'caregiver-1', lineUserId: 'U_caregiver_1' },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).toHaveBeenCalledTimes(2)
+    expect(mockSendLinePush).toHaveBeenCalledWith(LINE_ID, expect.stringContaining('Checkup'))
+    expect(mockSendLinePush).toHaveBeenCalledWith('U_caregiver_1', expect.stringContaining('Checkup'))
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────

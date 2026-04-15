@@ -69,6 +69,7 @@ model FamilyAccess {
   grantedToUserId String
   familyMemberId  String
   role            AccessRole
+  notificationPrefs String?
   createdAt       DateTime   @default(now())
 
   grantedBy    User         @relation("GrantedBy", fields: [grantedByUserId], references: [id])
