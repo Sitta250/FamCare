@@ -54,6 +54,7 @@ const {
   updateNotificationPrefs,
 } = await import('../services/familyAccessService.js')
 
+const { fanoutToFamily } = await import('../services/caregiverNotifyService.js')
 const { dispatchDueReminders } = await import('../services/reminderDispatchService.js')
 
 const OWNER_ID = 'owner-1'
@@ -107,7 +108,7 @@ function reminderRecord(overrides = {}) {
       familyMember: {
         id: MEMBER_ID,
         name: 'Grandma',
-        owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID },
+        owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'PRIVATE' },
         accessList: [],
       },
     },
@@ -317,6 +318,43 @@ describe('access lifecycle', () => {
 })
 
 describe('dispatchDueReminders notification filtering', () => {
+  test('PRIVATE mode suppresses caregiver appointment reminders even when caregiver is opted in', async () => {
+    mockReminderFindMany.mockResolvedValue([
+      reminderRecord({
+        appointment: {
+          id: APPOINTMENT_ID,
+          title: 'Checkup',
+          appointmentAt: new Date(Date.now() + 60 * 60 * 1000),
+          hospital: 'City Hospital',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'PRIVATE' },
+            accessList: [
+              {
+                notificationPrefs: JSON.stringify(prefs()),
+                grantedTo: { id: INVITEE_ID, lineUserId: INVITEE_LINE_ID },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePushToUser).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePushToUser).toHaveBeenCalledWith(
+      OWNER_LINE_ID,
+      expect.stringContaining('Checkup')
+    )
+    expect(mockSendLinePushToUser).not.toHaveBeenCalledWith(
+      INVITEE_LINE_ID,
+      expect.any(String)
+    )
+  })
+
   test('caregiver with appointmentReminders:false does not receive push', async () => {
     mockReminderFindMany.mockResolvedValue([
       reminderRecord({
@@ -329,7 +367,7 @@ describe('dispatchDueReminders notification filtering', () => {
           familyMember: {
             id: MEMBER_ID,
             name: 'Grandma',
-            owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID },
+            owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'GROUP' },
             accessList: [
               {
                 notificationPrefs: JSON.stringify(prefs({ appointmentReminders: false })),
@@ -366,7 +404,7 @@ describe('dispatchDueReminders notification filtering', () => {
           familyMember: {
             id: MEMBER_ID,
             name: 'Grandma',
-            owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID },
+            owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'GROUP' },
             accessList: [
               {
                 notificationPrefs: null,
@@ -414,5 +452,45 @@ describe('owner access is always retained', () => {
       OWNER_LINE_ID,
       expect.stringContaining('Checkup')
     )
+  })
+})
+
+describe('fanoutToFamily chatMode gating', () => {
+  test('does nothing when owner chatMode is PRIVATE', async () => {
+    mockFamilyMemberFindUnique.mockResolvedValue({
+      ownerId: OWNER_ID,
+      owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'PRIVATE' },
+      accessList: [
+        {
+          grantedToUserId: INVITEE_ID,
+          notificationPrefs: JSON.stringify(prefs()),
+          grantedTo: { lineUserId: INVITEE_LINE_ID },
+        },
+      ],
+    })
+
+    await fanoutToFamily(MEMBER_ID, OWNER_ID, 'Test message', 'appointmentReminders')
+
+    expect(mockSendLinePushToUser).not.toHaveBeenCalled()
+  })
+
+  test('in GROUP mode sends to opted-in caregiver and excludes the actor', async () => {
+    mockFamilyMemberFindUnique.mockResolvedValue({
+      ownerId: OWNER_ID,
+      owner: { id: OWNER_ID, lineUserId: OWNER_LINE_ID, chatMode: 'GROUP' },
+      accessList: [
+        {
+          grantedToUserId: INVITEE_ID,
+          notificationPrefs: JSON.stringify(prefs()),
+          grantedTo: { lineUserId: INVITEE_LINE_ID },
+        },
+      ],
+    })
+
+    await fanoutToFamily(MEMBER_ID, OWNER_ID, 'Test message', 'appointmentReminders')
+
+    expect(mockSendLinePushToUser).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePushToUser).toHaveBeenCalledWith(INVITEE_LINE_ID, 'Test message')
+    expect(mockSendLinePushToUser).not.toHaveBeenCalledWith(OWNER_LINE_ID, expect.any(String))
   })
 })

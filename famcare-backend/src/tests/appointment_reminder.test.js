@@ -103,7 +103,7 @@ function fakeReminder(overrides = {}) {
       familyMember: {
         id:   MEMBER_ID,
         name: 'Grandma',
-        owner: { id: USER_ID, lineUserId: LINE_ID },
+        owner: { id: USER_ID, lineUserId: LINE_ID, chatMode: 'PRIVATE' },
         accessList: [],
       },
     },
@@ -193,7 +193,7 @@ describe('dispatchDueReminders — window and delivery', () => {
           familyMember: {
             id: MEMBER_ID,
             name: 'Grandma',
-            owner: { id: USER_ID, lineUserId: LINE_ID },
+            owner: { id: USER_ID, lineUserId: LINE_ID, chatMode: 'GROUP' },
             accessList: [
               {
                 id: 'access-1',
@@ -226,7 +226,7 @@ describe('dispatchDueReminders — window and delivery', () => {
           familyMember: {
             id: MEMBER_ID,
             name: 'Grandma',
-            owner: { id: USER_ID, lineUserId: LINE_ID },
+            owner: { id: USER_ID, lineUserId: LINE_ID, chatMode: 'GROUP' },
             accessList: [
               {
                 id: 'access-1',

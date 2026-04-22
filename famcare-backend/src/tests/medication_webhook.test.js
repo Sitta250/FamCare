@@ -2,6 +2,8 @@ import { jest } from '@jest/globals'
 
 const mockReplyMessage = jest.fn()
 const mockFindOrCreateByLineUserId = jest.fn()
+const mockUpdateChatMode = jest.fn()
+const mockDeleteUserAndData = jest.fn()
 const mockCreateAppointment = jest.fn()
 const mockCreateMedicationLog = jest.fn()
 const mockMedicationFindUnique = jest.fn()
@@ -24,6 +26,8 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 
 jest.unstable_mockModule('../services/userService.js', () => ({
   findOrCreateByLineUserId: mockFindOrCreateByLineUserId,
+  updateChatMode: mockUpdateChatMode,
+  deleteUserAndData: mockDeleteUserAndData,
 }))
 
 jest.unstable_mockModule('../services/appointmentService.js', () => ({

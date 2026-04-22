@@ -1,4 +1,5 @@
 import { jest } from '@jest/globals'
+import { bangkokCalendarDate } from '../utils/datetime.js'
 
 const mockMedicationCreate = jest.fn()
 const mockMedicationFindUnique = jest.fn()
@@ -25,6 +26,7 @@ const mockSendLinePushToUser = jest.fn()
 const mockGetRecipients = jest.fn()
 const mockDispatchMedicationReminders = jest.fn()
 const mockDispatchDueReminders = jest.fn()
+const mockDispatchExpirationReminders = jest.fn()
 const mockCronSchedule = jest.fn()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
@@ -75,6 +77,10 @@ jest.unstable_mockModule('../services/medicationReminderDispatchService.js', () 
 
 jest.unstable_mockModule('../services/reminderDispatchService.js', () => ({
   dispatchDueReminders: mockDispatchDueReminders,
+}))
+
+jest.unstable_mockModule('../services/insuranceService.js', () => ({
+  dispatchExpirationReminders: mockDispatchExpirationReminders,
 }))
 
 jest.unstable_mockModule('node-cron', () => ({
@@ -246,7 +252,7 @@ describe('checkLowStockAlerts', () => {
   })
 
   test('does not re-alert when already alerted today', async () => {
-    mockMedicationFindMany.mockResolvedValue([fakeMedication({ lastLowStockAlertDate: '2026-04-14' })])
+    mockMedicationFindMany.mockResolvedValue([fakeMedication({ lastLowStockAlertDate: bangkokCalendarDate() })])
 
     await checkLowStockAlerts()
 
@@ -274,12 +280,17 @@ describe('checkLowStockAlerts', () => {
 })
 
 describe('startCronJobs', () => {
-  test('registers a daily low-stock cron job with Bangkok timezone', () => {
+  test('registers daily low-stock and insurance expiration cron jobs with Bangkok timezone', () => {
     startCronJobs()
 
     expect(mockCronSchedule).toHaveBeenCalledWith('* * * * *', expect.any(Function))
     expect(mockCronSchedule).toHaveBeenCalledWith(
       '0 8 * * *',
+      expect.any(Function),
+      { timezone: 'Asia/Bangkok' }
+    )
+    expect(mockCronSchedule).toHaveBeenCalledWith(
+      '0 9 * * *',
       expect.any(Function),
       { timezone: 'Asia/Bangkok' }
     )

@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma.js'
 
+const CHAT_MODES = new Set(['PRIVATE', 'GROUP'])
+
 export async function findOrCreateByLineUserId(lineUserId, { displayName, photoUrl } = {}) {
   return prisma.user.upsert({
     where: { lineUserId },
@@ -12,6 +14,20 @@ export async function findOrCreateByLineUserId(lineUserId, { displayName, photoU
       displayName: displayName || 'LINE User',
       photoUrl: photoUrl || null,
     },
+  })
+}
+
+export async function updateChatMode(userId, chatMode) {
+  if (!CHAT_MODES.has(chatMode)) {
+    throw Object.assign(new Error('chatMode must be one of PRIVATE, GROUP'), {
+      status: 400,
+      code: 'BAD_REQUEST',
+    })
+  }
+
+  return prisma.user.update({
+    where: { id: userId },
+    data: { chatMode },
   })
 }
 

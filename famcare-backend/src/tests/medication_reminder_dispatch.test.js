@@ -38,7 +38,7 @@ function memberRecord(overrides = {}) {
   return {
     id: MEMBER_ID,
     missedDoseAlertsEnabled: true,
-    owner: { lineUserId: OWNER_LINE_ID },
+    owner: { lineUserId: OWNER_LINE_ID, chatMode: 'GROUP' },
     accessList: [
       {
         notificationPrefs: JSON.stringify({
@@ -88,6 +88,21 @@ beforeEach(() => {
 })
 
 describe('getRecipients', () => {
+  test('returns only owner when owner chatMode is PRIVATE', async () => {
+    mockFamilyMemberFindUnique.mockResolvedValue(
+      memberRecord({
+        owner: { lineUserId: OWNER_LINE_ID, chatMode: 'PRIVATE' },
+      })
+    )
+
+    const result = await getRecipients(MEMBER_ID, 'medicationReminders')
+
+    expect(result).toEqual({
+      recipients: [OWNER_LINE_ID],
+      missedAlertsEnabled: true,
+    })
+  })
+
   test('filters medication reminders by medicationReminders preference', async () => {
     mockFamilyMemberFindUnique.mockResolvedValue(
       memberRecord({

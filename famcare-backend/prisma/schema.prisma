@@ -13,6 +13,7 @@ model User {
   displayName String
   photoUrl    String?
   phone       String?
+  chatMode    ChatMode @default(PRIVATE)
   createdAt   DateTime @default(now())
 
   familyMembers           FamilyMember[]  @relation("OwnedMembers")
@@ -46,6 +47,7 @@ model FamilyMember {
   healthMetrics     HealthMetric[]
   metricThresholds  MetricThreshold[]
   documents         Document[]
+  insuranceCards    InsuranceCard[]
   symptomLogs       SymptomLog[]
   emergencyContacts EmergencyContact[]
 }
@@ -202,6 +204,36 @@ model Document {
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
 }
 
+model InsuranceCard {
+  id                    String   @id @default(cuid())
+  familyMemberId        String
+  addedByUserId         String
+  companyName           String?
+  policyNumber          String?
+  groupNumber           String?
+  expirationDate        DateTime?
+  policyHolderName      String?
+  dependentRelationship String?
+  customerServicePhone  String?
+  emergencyPhone        String?
+  coverageType          String?
+  coverageSummary       String?
+  frontPhotoUrl         String?
+  backPhotoUrl          String?
+  frontPhotoPublicId    String?
+  backPhotoPublicId     String?
+  extractedText         String?
+  isDeleted             Boolean  @default(false)
+  allowViewerFullAccess Boolean  @default(false)
+  reminder60dSent       Boolean  @default(false)
+  reminder30dSent       Boolean  @default(false)
+  reminder7dSent        Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
+}
+
 model SymptomLog {
   id             String   @id @default(cuid())
   familyMemberId String
@@ -260,4 +292,9 @@ enum DocumentType {
   BILL
   XRAY
   OTHER
+}
+
+enum ChatMode {
+  PRIVATE
+  GROUP
 }

@@ -2,6 +2,7 @@ import cron from 'node-cron'
 import { dispatchDueReminders } from '../services/reminderDispatchService.js'
 import { dispatchMedicationReminders } from '../services/medicationReminderDispatchService.js'
 import { checkLowStockAlerts } from '../services/medicationService.js'
+import { dispatchExpirationReminders } from '../services/insuranceService.js'
 
 export function startCronJobs() {
   // Every minute: dispatch due appointment reminders
@@ -28,6 +29,15 @@ export function startCronJobs() {
       await checkLowStockAlerts()
     } catch (err) {
       console.error('[cron] checkLowStockAlerts error:', err.message)
+    }
+  }, { timezone: 'Asia/Bangkok' })
+
+  // Daily at 09:00 Bangkok: check insurance cards approaching expiration
+  cron.schedule('0 9 * * *', async () => {
+    try {
+      await dispatchExpirationReminders()
+    } catch (err) {
+      console.error('[cron] dispatchExpirationReminders error:', err.message)
     }
   }, { timezone: 'Asia/Bangkok' })
 

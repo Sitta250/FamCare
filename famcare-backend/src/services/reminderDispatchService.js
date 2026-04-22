@@ -38,10 +38,12 @@ export async function dispatchDueReminders() {
       // Collect distinct LINE user ids: owner + caregivers
       const recipients = new Map()
       recipients.set(familyMember.owner.id, familyMember.owner.lineUserId)
-      for (const access of familyMember.accessList) {
-        const prefs = parseNotificationPrefs(access.notificationPrefs)
-        if (prefs.appointmentReminders) {
-          recipients.set(access.grantedTo.id, access.grantedTo.lineUserId)
+      if (familyMember.owner.chatMode === 'GROUP') {
+        for (const access of familyMember.accessList) {
+          const prefs = parseNotificationPrefs(access.notificationPrefs)
+          if (prefs.appointmentReminders) {
+            recipients.set(access.grantedTo.id, access.grantedTo.lineUserId)
+          }
         }
       }
 

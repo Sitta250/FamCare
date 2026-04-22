@@ -15,7 +15,7 @@ export async function getRecipients(familyMemberId, eventType = 'medicationRemin
     where: { id: familyMemberId },
     select: {
       missedDoseAlertsEnabled: true,
-      owner: { select: { lineUserId: true } },
+      owner: { select: { lineUserId: true, chatMode: true } },
       accessList: {
         where: { role: 'CAREGIVER' },
         select: {
@@ -28,10 +28,12 @@ export async function getRecipients(familyMemberId, eventType = 'medicationRemin
   if (!member) return { recipients: [], missedAlertsEnabled: false }
 
   const recipients = [member.owner.lineUserId]
-  for (const a of member.accessList) {
-    const prefs = parseNotificationPrefs(a.notificationPrefs)
-    if (prefs[eventType]) {
-      recipients.push(a.grantedTo.lineUserId)
+  if (member.owner.chatMode === 'GROUP') {
+    for (const a of member.accessList) {
+      const prefs = parseNotificationPrefs(a.notificationPrefs)
+      if (prefs[eventType]) {
+        recipients.push(a.grantedTo.lineUserId)
+      }
     }
   }
   return { recipients: [...new Set(recipients)], missedAlertsEnabled: member.missedDoseAlertsEnabled }

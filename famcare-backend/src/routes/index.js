@@ -5,6 +5,7 @@ import appointmentsRouter from './appointments.js'
 import medicationsRouter from './medications.js'
 import healthMetricsRouter from './healthMetrics.js'
 import documentsRouter from './documents.js'
+import insuranceRouter from './insurance.js'
 import symptomLogsRouter from './symptomLogs.js'
 
 const router = Router()
@@ -15,6 +16,7 @@ router.use('/appointments', appointmentsRouter)
 router.use('/medications', medicationsRouter)
 router.use('/health-metrics', healthMetricsRouter)
 router.use('/documents', documentsRouter)
+router.use('/insurance', insuranceRouter)
 router.use('/symptom-logs', symptomLogsRouter)
 
 export default router

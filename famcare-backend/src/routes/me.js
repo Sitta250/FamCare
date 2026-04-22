@@ -1,22 +1,34 @@
 import { Router } from 'express'
 import { requireLineUser } from '../middleware/auth.js'
 import { toBangkokISO } from '../utils/datetime.js'
-import { deleteUserAndData } from '../services/userService.js'
+import { deleteUserAndData, updateChatMode } from '../services/userService.js'
 
 const router = Router()
 
+function serializeMe(user) {
+  const { id, lineUserId, displayName, photoUrl, phone, chatMode, createdAt } = user
+  return {
+    id,
+    lineUserId,
+    displayName,
+    photoUrl,
+    phone,
+    chatMode,
+    createdAt: toBangkokISO(createdAt),
+  }
+}
+
 router.get('/', requireLineUser, (req, res) => {
-  const { id, lineUserId, displayName, photoUrl, phone, createdAt } = req.user
-  res.json({
-    data: {
-      id,
-      lineUserId,
-      displayName,
-      photoUrl,
-      phone,
-      createdAt: toBangkokISO(createdAt),
-    },
-  })
+  res.json({ data: serializeMe(req.user) })
+})
+
+router.patch('/', requireLineUser, async (req, res, next) => {
+  try {
+    const user = await updateChatMode(req.user.id, req.body.chatMode)
+    res.json({ data: serializeMe(user) })
+  } catch (err) {
+    next(err)
+  }
 })
 
 /**

@@ -20,25 +20,39 @@ const ALLOWED_AUDIO_MIME_TYPES = new Set([
   'audio/aac',
 ])
 
+function createFileFilter(allowedMimeTypes) {
+  return (_req, file, cb) => {
+    if (allowedMimeTypes.has(file.mimetype)) {
+      cb(null, true)
+      return
+    }
+
+    cb(Object.assign(new Error('Unsupported file type'), {
+      status: 415,
+      code: 'UNSUPPORTED_MEDIA_TYPE',
+    }))
+  }
+}
+
 function createUploader(allowedMimeTypes) {
   return multer({
     storage: multer.memoryStorage(),
     limits: {
       fileSize: MAX_FILE_SIZE_BYTES,
     },
-    fileFilter: (_req, file, cb) => {
-      if (allowedMimeTypes.has(file.mimetype)) {
-        cb(null, true)
-        return
-      }
-
-      cb(Object.assign(new Error('Unsupported file type'), {
-        status: 415,
-        code: 'UNSUPPORTED_MEDIA_TYPE',
-      }))
-    },
+    fileFilter: createFileFilter(allowedMimeTypes),
   }).single('file')
 }
 
 export const uploadSingle = createUploader(ALLOWED_UPLOAD_MIME_TYPES)
 export const uploadAudio = createUploader(ALLOWED_AUDIO_MIME_TYPES)
+export const uploadInsurancePhotos = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: MAX_FILE_SIZE_BYTES,
+  },
+  fileFilter: createFileFilter(ALLOWED_UPLOAD_MIME_TYPES),
+}).fields([
+  { name: 'frontPhoto', maxCount: 1 },
+  { name: 'backPhoto', maxCount: 1 },
+])

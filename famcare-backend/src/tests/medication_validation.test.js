@@ -17,6 +17,7 @@ const mockTransaction = jest.fn()
 
 const mockAssertCanReadMember = jest.fn()
 const mockAssertCanWriteMember = jest.fn()
+const mockAssertOwnerForMember = jest.fn()
 const mockNotifyOwnerIfCaregiver = jest.fn()
 const mockFindOrCreate = jest.fn()
 
@@ -45,6 +46,7 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
 jest.unstable_mockModule('../services/accessService.js', () => ({
   assertCanReadMember: mockAssertCanReadMember,
   assertCanWriteMember: mockAssertCanWriteMember,
+  assertOwnerForMember: mockAssertOwnerForMember,
 }))
 
 jest.unstable_mockModule('../services/caregiverNotifyService.js', () => ({

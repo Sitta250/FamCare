@@ -1,8 +1,11 @@
 import { messagingApi } from '@line/bot-sdk'
 import { prisma } from '../lib/prisma.js'
-import { findOrCreateByLineUserId } from '../services/userService.js'
+import { findOrCreateByLineUserId, updateChatMode } from '../services/userService.js'
 import { createAppointment } from '../services/appointmentService.js'
 import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medicationService.js'
+import { uploadBuffer } from '../services/cloudinaryService.js'
+import { parseIntent } from '../services/thaiNlpService.js'
+import { fanoutToFamily } from '../services/caregiverNotifyService.js'
 
 let lineClient = null
 
@@ -28,20 +31,67 @@ function reply(client, replyToken, text) {
 async function handleTextMessage(event) {
   const client = getLineClient()
   const text = event.message.text.trim()
+  const lineUserId = event.source.userId
+  const intent = parseIntent(text)
 
-  // "นัด" keyword — explain how to schedule via app
-  if (/นัด/.test(text)) {
-    return reply(
-      client,
-      event.replyToken,
-      '📅 หากต้องการเพิ่มนัดหมาย กรุณาใช้งานผ่านแอปพลิเคชัน FamCare\nหรือส่ง postback action=add_appointment ผ่าน Rich Menu'
-    )
+  if (intent.intent === 'chatMode') {
+    try {
+      const user = await findOrCreateByLineUserId(lineUserId)
+      await updateChatMode(user.id, intent.data.mode)
+      const modeText = intent.data.mode === 'GROUP' ? 'โหมดกลุ่ม' : 'โหมดส่วนตัว'
+      return reply(client, event.replyToken, `✅ เปลี่ยนเป็น${modeText}แล้ว`)
+    } catch (err) {
+      console.error('[webhook] chatMode update failed:', err.message)
+      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
+    }
   }
 
-  // Default echo
-  if (client && event.replyToken) {
-    await reply(client, event.replyToken, `รับทราบ: ${text}`)
+  if (intent.intent === 'appointment') {
+    if (!intent.data.appointmentAt) {
+      return reply(
+        client,
+        event.replyToken,
+        "📅 กรุณาระบุวันและเวลาของนัดหมาย เช่น 'นัดหมอพรุ่งนี้ 10 โมง'"
+      )
+    }
+
+    try {
+      const user = await findOrCreateByLineUserId(lineUserId)
+      const member = await findFirstOwnedFamilyMember(lineUserId)
+
+      if (!member) {
+        return reply(client, event.replyToken, 'กรุณาเพิ่มสมาชิกในครอบครัวก่อน')
+      }
+
+      const appt = await createAppointment(user.id, {
+        familyMemberId: member.id,
+        title: intent.data.title,
+        appointmentAt: intent.data.appointmentAt,
+      })
+
+      fanoutToFamily(
+        member.id,
+        user.id,
+        `📅 ${user.displayName || 'ผู้ใช้'} เพิ่มนัดหมาย "${appt.title}"`,
+        'appointmentReminders'
+      ).catch((err) => console.error('[webhook] appointment fanout failed:', err.message))
+
+      return reply(
+        client,
+        event.replyToken,
+        `✅ เพิ่มนัดหมาย "${appt.title}" เรียบร้อยแล้ว\nวันที่: ${appt.appointmentAt}`
+      )
+    } catch (err) {
+      console.error('[webhook] appointment from text failed:', err.message)
+      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
+    }
   }
+
+  return reply(
+    client,
+    event.replyToken,
+    "สวัสดี! ส่ง 'นัดหมอพรุ่งนี้ 10 โมง' เพื่อเพิ่มนัดหมาย\nหรือ 'โหมดกลุ่ม'/'โหมดส่วนตัว' เพื่อตั้งค่าการแจ้งเตือน"
+  )
 }
 
 // ── Postback handling ────────────────────────────────────────────────────────
@@ -161,13 +211,14 @@ async function handleAudioMessage(event) {
 
     const member = user?.familyMembers?.[0]
     if (member) {
+      const voiceNoteUrl = await resolveVoiceNoteUrl(messageId, contentUrl)
       await prisma.symptomLog.create({
         data: {
           familyMemberId: member.id,
           addedByUserId: user.id,
           description: 'บันทึกเสียง (จาก LINE)',
           severity: 1,
-          attachmentUrl: contentUrl,
+          voiceNoteUrl,
           loggedAt: new Date(),
         },
       })
@@ -184,6 +235,49 @@ async function handleAudioMessage(event) {
     event.replyToken,
     '🎤 รับบันทึกเสียงแล้ว กรุณาตรวจสอบในแอปพลิเคชัน FamCare'
   )
+}
+
+async function resolveVoiceNoteUrl(messageId, contentUrl) {
+  if (!process.env.LINE_CHANNEL_ACCESS_TOKEN || !process.env.CLOUDINARY_URL) {
+    console.warn('[webhook] voice upload skipped: missing token/cloudinary config')
+    return contentUrl
+  }
+
+  try {
+    const response = await fetch(contentUrl, {
+      headers: {
+        Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`LINE content fetch failed: ${response.status}`)
+    }
+
+    const arrayBuffer = await response.arrayBuffer()
+    const buffer = Buffer.from(arrayBuffer)
+    const upload = await uploadBuffer(buffer, {
+      folder: 'famcare/voice',
+      resourceType: 'video',
+      originalname: `${messageId}.m4a`,
+    })
+
+    return upload.secure_url || contentUrl
+  } catch (err) {
+    console.error('[webhook] voice upload failed:', err.message)
+    return contentUrl
+  }
+}
+
+async function findFirstOwnedFamilyMember(lineUserId) {
+  const user = await prisma.user.findUnique({
+    where: { lineUserId },
+    include: {
+      familyMembers: { take: 1, orderBy: { createdAt: 'asc' } },
+    },
+  })
+
+  return user?.familyMembers?.[0] ?? null
 }
 
 // ── Main event dispatcher ────────────────────────────────────────────────────

@@ -110,7 +110,7 @@ function fakeMedication(overrides = {}) {
 }
 
 beforeEach(() => {
-  jest.clearAllMocks()
+  jest.resetAllMocks()
   mockFindOrCreate.mockResolvedValue({ id: USER_ID, lineUserId: LINE_ID, displayName: 'Test' })
   mockAssertCanReadMember.mockResolvedValue('OWNER')
   mockAssertCanWriteMember.mockResolvedValue('OWNER')
