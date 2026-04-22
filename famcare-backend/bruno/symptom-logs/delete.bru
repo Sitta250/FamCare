@@ -1,0 +1,21 @@
+meta {
+  name: Delete symptom log
+  type: http
+  seq: 95
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/symptom-logs/{{symptomLogId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

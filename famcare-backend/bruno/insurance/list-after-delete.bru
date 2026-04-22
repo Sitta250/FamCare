@@ -1,0 +1,25 @@
+meta {
+  name: List insurance after soft delete — deleted card excluded
+  type: http
+  seq: 96
+}
+
+get {
+  url: {{baseUrl}}/api/v1/insurance?familyMemberId={{memberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("deleted card is not in list", function() {
+    const ids = res.body.data.map(c => c.id);
+    expect(ids).to.not.include(bru.getEnvVar("insuranceId"));
+  });
+}

@@ -1,0 +1,24 @@
+meta {
+  name: Get medication
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("id matches", function() {
+    expect(res.body.data.id).to.equal(bru.getEnvVar("medicationId"));
+  });
+}

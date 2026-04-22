@@ -1,25 +1,44 @@
 meta {
-  name: Create Appointment
+  name: Create appointment
   type: http
   seq: 1
 }
 
 post {
-  url: http://localhost:3000/api/v1/appointments
+  url: {{baseUrl}}/api/v1/appointments
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
   {
     "familyMemberId": "{{memberId}}",
     "title": "พบแพทย์ตรวจเบาหวาน",
-    "appointmentAt": "2026-06-01T10:00:00.000Z",
+    "appointmentAt": "2026-06-01T10:00:00+07:00",
     "doctor": "นพ.สมชาย",
-    "hospital": "Bumrungrad"
+    "hospital": "Bumrungrad",
+    "reason": "ติดตามค่าน้ำตาล",
+    "preNotes": "งดอาหาร 8 ชม.",
+    "whoBringsNote": "ลูกชาย"
   }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("appointmentAt has Bangkok offset", function() {
+    expect(res.body.data.appointmentAt).to.match(/\+07:00$/);
+  });
+  test("status defaults to UPCOMING", function() {
+    expect(res.body.data.status).to.equal("UPCOMING");
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("appointmentId", res.body.data.id);
 }

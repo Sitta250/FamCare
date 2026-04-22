@@ -1,0 +1,28 @@
+meta {
+  name: Attach voice note to symptom log
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/symptom-logs/{{symptomLogId}}/voice-note
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  file: @file(./fixtures/sample.m4a)
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("voiceNoteUrl returned", function() {
+    expect(res.body.data.voiceNoteUrl).to.be.a("string");
+  });
+}

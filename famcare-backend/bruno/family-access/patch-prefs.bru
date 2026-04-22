@@ -1,0 +1,37 @@
+meta {
+  name: Update notification prefs for caregiver
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/access/{{caregiverUserId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "notificationPrefs": {
+      "appointmentReminders": true,
+      "medicationReminders": false,
+      "missedDoseAlerts": false
+    }
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("medicationReminders disabled", function() {
+    expect(res.body.data.notificationPrefs.medicationReminders).to.equal(false);
+  });
+  test("missedDoseAlerts disabled", function() {
+    expect(res.body.data.notificationPrefs.missedDoseAlerts).to.equal(false);
+  });
+}

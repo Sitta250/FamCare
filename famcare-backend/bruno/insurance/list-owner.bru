@@ -1,0 +1,29 @@
+meta {
+  name: List insurance cards (owner — unmasked)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/insurance?familyMemberId={{memberId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("data is array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
+  test("policyNumber unmasked for owner", function() {
+    if (res.body.data.length > 0) {
+      expect(res.body.data[0].policyNumber).to.not.match(/^\*\*\*\*/);
+    }
+  });
+}

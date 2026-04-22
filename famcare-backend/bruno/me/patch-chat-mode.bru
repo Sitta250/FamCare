@@ -1,0 +1,30 @@
+meta {
+  name: Patch /me — switch chatMode to GROUP
+  type: http
+  seq: 2
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "chatMode": "GROUP"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("chatMode updated to GROUP", function() {
+    expect(res.body.data.chatMode).to.equal("GROUP");
+  });
+}

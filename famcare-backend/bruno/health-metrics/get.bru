@@ -1,0 +1,21 @@
+meta {
+  name: Get health metric
+  type: http
+  seq: 5
+}
+
+get {
+  url: {{baseUrl}}/api/v1/health-metrics/{{metricId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+}

@@ -1,0 +1,33 @@
+meta {
+  name: Replace medication schedule (PUT)
+  type: http
+  seq: 5
+}
+
+put {
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}/schedule
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "times": ["08:00", "13:00", "20:00"]
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("returns 3 schedules", function() {
+    expect(res.body.data).to.have.lengthOf(3);
+  });
+  test("first timeLocal preserved", function() {
+    expect(res.body.data[0].timeLocal).to.equal("08:00");
+  });
+}

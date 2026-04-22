@@ -2,5 +2,8 @@
   "version": "1",
   "name": "famcare-backend",
   "type": "collection",
-  "ignore": []
+  "ignore": [
+    "node_modules",
+    ".git"
+  ]
 }

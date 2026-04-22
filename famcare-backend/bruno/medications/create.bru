@@ -1,17 +1,17 @@
 meta {
-  name: Create Medication
+  name: Create medication
   type: http
   seq: 1
 }
 
 post {
-  url: http://localhost:3000/api/v1/medications
+  url: {{baseUrl}}/api/v1/medications
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
@@ -20,7 +20,23 @@ body:json {
     "name": "Metformin",
     "dosage": "500mg",
     "frequency": "twice daily",
+    "instructions": "หลังอาหาร",
     "startDate": "2026-01-01",
+    "quantity": 60,
+    "lowStockThreshold": 10,
     "reminderTimesJson": "[\"08:00\",\"20:00\"]"
   }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("medication name echoed", function() {
+    expect(res.body.data.name).to.equal("Metformin");
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("medicationId", res.body.data.id);
 }

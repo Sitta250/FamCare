@@ -1,0 +1,41 @@
+meta {
+  name: Create symptom log
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/symptom-logs
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "familyMemberId": "{{memberId}}",
+    "description": "ปวดหัว คลื่นไส้",
+    "severity": 6,
+    "note": "เป็นช่วงบ่าย",
+    "loggedAt": "2026-04-21T14:00:00+07:00"
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("severity stored as integer 6", function() {
+    expect(res.body.data.severity).to.equal(6);
+  });
+  test("loggedAt is Bangkok ISO", function() {
+    expect(res.body.data.loggedAt).to.match(/\+07:00$/);
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("symptomLogId", res.body.data.id);
+}

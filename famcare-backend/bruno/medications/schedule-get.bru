@@ -1,0 +1,26 @@
+meta {
+  name: Get medication schedule
+  type: http
+  seq: 6
+}
+
+get {
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}/schedule
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("response is array of HH:mm rows", function() {
+    for (const s of res.body.data) {
+      expect(s.timeLocal).to.match(/^\d{2}:\d{2}$/);
+    }
+  });
+}

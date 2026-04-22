@@ -1,0 +1,21 @@
+meta {
+  name: Soft delete insurance card
+  type: http
+  seq: 95
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/insurance/{{insuranceId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

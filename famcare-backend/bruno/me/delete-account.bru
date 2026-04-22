@@ -1,19 +1,24 @@
 meta {
-  name: PDPA delete account (me)
+  name: Delete /me — PDPA hard delete
   type: http
   seq: 99
 }
 
 delete {
-  url: http://localhost:3000/api/v1/me
+  url: {{baseUrl}}/api/v1/me
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: REPLACE_BEFORE_RUN
+  x-line-userid: test-user-tombstone
 }
 
-docs {
-  Replace x-line-userid with a disposable test LINE id. Destroys all owned data; same id recreates empty user on next request.
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("deleted flag returned", function() {
+    expect(res.body.data.deleted).to.equal(true);
+  });
 }

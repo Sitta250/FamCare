@@ -1,0 +1,29 @@
+meta {
+  name: Patch insurance card
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/insurance/{{insuranceId}}
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  coverageSummary: Outpatient + inpatient
+  allowViewerFullAccess: true
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("coverageSummary updated", function() {
+    expect(res.body.data.coverageSummary).to.equal("Outpatient + inpatient");
+  });
+}

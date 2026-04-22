@@ -142,6 +142,14 @@ Each user has their own independent account. There is no shared family pool. A u
 - Natural conversational Thai language interface
 - Voice message support → converted to text for logging
 
+### 12. Insurance Card
+
+- Store front/back photo of insurance cards per family member, uploaded to Cloudinary with OCR (Claude Vision or Google Vision) to auto-extract key fields like policy number, company, and expiration date — user confirms or edits before saving
+- Supports multiple policies per person (primary, secondary, government) with role-based masking — VIEWERs only see last 4 digits of policy number unless owner explicitly allows full access
+- Status tracking (ACTIVE / EXPIRING / EXPIRED) computed from expiration date, with automated LINE push reminders at 60, 30, and 7 days before expiry
+- Quick access via LINE bot command ("บัตรประกันคุณแม่") returns a Flex Message with photo + key info, shareable to family group chat
+- Full CRUD with soft delete, scoped to family member access — OCR failures degrade gracefully to manual entry rather than erroring out
+
 ---
 
 ## Out of Scope for MVP

@@ -1,0 +1,30 @@
+meta {
+  name: Patch /me — invalid chatMode returns 400
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "chatMode": "TEAM"
+  }
+}
+
+tests {
+  test("status is 400", function() {
+    expect(res.status).to.equal(400);
+  });
+  test("BAD_REQUEST code", function() {
+    expect(res.body.code).to.equal("BAD_REQUEST");
+  });
+}

@@ -1,22 +1,40 @@
 meta {
-  name: Grant Access
+  name: Grant CAREGIVER access
   type: http
   seq: 1
 }
 
 post {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}/access
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/access
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: owner-line-id
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
   {
-    "grantedToLineUserId": "caregiver-line-id",
-    "role": "CAREGIVER"
+    "grantedToLineUserId": "{{caregiverUserId}}",
+    "role": "CAREGIVER",
+    "notificationPrefs": {
+      "appointmentReminders": true,
+      "medicationReminders": true,
+      "missedDoseAlerts": true
+    }
   }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("role is CAREGIVER", function() {
+    expect(res.body.data.role).to.equal("CAREGIVER");
+  });
+  test("notificationPrefs are parsed object", function() {
+    expect(res.body.data.notificationPrefs).to.be.an("object");
+    expect(res.body.data.notificationPrefs.appointmentReminders).to.equal(true);
+  });
 }

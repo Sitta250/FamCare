@@ -1,22 +1,31 @@
 meta {
-  name: Update Family Member
+  name: Update family member
   type: http
   seq: 4
 }
 
 patch {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
   {
-    "allergies": "penicillin, sulfa",
-    "preferredHospital": "Bumrungrad"
+    "preferredHospital": "Samitivej",
+    "allergies": "penicillin, sulfa"
   }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("updated fields reflected", function() {
+    expect(res.body.data.preferredHospital).to.equal("Samitivej");
+  });
 }

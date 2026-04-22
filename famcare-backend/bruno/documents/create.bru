@@ -1,0 +1,38 @@
+meta {
+  name: Upload document (multipart)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  familyMemberId: {{memberId}}
+  type: PRESCRIPTION
+  tags: เบาหวาน, metformin
+  file: @file(./fixtures/sample.jpg)
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("cloudinaryUrl returned", function() {
+    expect(res.body.data.cloudinaryUrl).to.be.a("string");
+  });
+  test("type echoed", function() {
+    expect(res.body.data.type).to.equal("PRESCRIPTION");
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("documentId", res.body.data.id);
+}

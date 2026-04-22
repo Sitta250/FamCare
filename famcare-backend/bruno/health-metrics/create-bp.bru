@@ -1,0 +1,43 @@
+meta {
+  name: Create health metric (BLOOD_PRESSURE)
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/health-metrics
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "familyMemberId": "{{memberId}}",
+    "type": "BLOOD_PRESSURE",
+    "value": 150,
+    "value2": 95,
+    "unit": "mmHg",
+    "measuredAt": "2026-04-22T07:00:00+07:00",
+    "note": "ตื่นนอน"
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("isAbnormal is true (150/95 is high)", function() {
+    expect(res.body.data.isAbnormal).to.equal(true);
+  });
+  test("measuredAt is Bangkok ISO", function() {
+    expect(res.body.data.measuredAt).to.match(/\+07:00$/);
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("metricId", res.body.data.id);
+}

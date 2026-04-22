@@ -1,0 +1,30 @@
+meta {
+  name: Patch /me — switch chatMode back to PRIVATE
+  type: http
+  seq: 3
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/me
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "chatMode": "PRIVATE"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("chatMode back to PRIVATE", function() {
+    expect(res.body.data.chatMode).to.equal("PRIVATE");
+  });
+}

@@ -37,6 +37,18 @@
 
 ## Log
 
+### 2026-04-22 — Backend readiness audit for iOS (Bruno + API contract shipped)
+
+- **Type:** ops
+- **Original intent:** Plan [`backend_readiness_audit_0163e6d8.plan.md`](../../.cursor/plans/backend_readiness_audit_0163e6d8.plan.md) asked for a full PRD-to-code audit before iOS wiring.
+- **What we did instead:** Matches the plan. Shipped [`docs/execution/READINESS_AUDIT.md`](../execution/READINESS_AUDIT.md), expanded [`famcare-backend/bruno/`](../../famcare-backend/bruno/) to one folder per PRD feature (with `tests { }` assertions and an `environments/local.bru`), and published [`docs/architecture/api_contract.md`](../architecture/api_contract.md). Per-feature readiness checklist lives in [`docs/execution/STATUS.md`](../execution/STATUS.md).
+- **Why:** iOS engineers can now wire endpoints from the contract and validate locally with `bru run` instead of reading route source.
+- **Follow-ups recorded (not fixed in this pass):**
+  - CORS middleware for the eventual web dashboard — out of scope for iOS-first launch.
+  - Pagination envelope for list endpoints beyond `symptom-logs` and `medications/:id/logs` — deferred until any screen hits 100+ items.
+  - Rate limiting / abuse mitigation — Phase 2 (web) item.
+  - Voice-note transcription still deferred (previous entry 2026-04-14 stands).
+
 ### 2026-04-14 — Voice note transcription deferred for symptom logs
 
 - **Type:** scope-add

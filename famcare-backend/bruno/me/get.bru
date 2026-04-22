@@ -1,16 +1,27 @@
 meta {
-  name: Get current user (me)
+  name: Get /me
   type: http
   seq: 1
 }
 
 get {
-  url: http://localhost:3000/api/v1/me
+  url: {{baseUrl}}/api/v1/me
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
-  x-line-displayname: Bruno Tester
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("data has chatMode", function() {
+    expect(res.body.data).to.have.property("chatMode");
+  });
+  test("createdAt is Bangkok ISO", function() {
+    expect(res.body.data.createdAt).to.match(/\+07:00$/);
+  });
 }

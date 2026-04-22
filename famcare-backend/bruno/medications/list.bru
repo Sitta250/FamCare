@@ -1,0 +1,24 @@
+meta {
+  name: List medications (active only)
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/medications?familyMemberId={{memberId}}&active=true
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("all rows are active", function() {
+    for (const m of res.body.data) expect(m.active).to.equal(true);
+  });
+}

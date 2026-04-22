@@ -1,0 +1,31 @@
+meta {
+  name: Patch symptom log
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/symptom-logs/{{symptomLogId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "severity": 8,
+    "note": "อาการรุนแรงขึ้น"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("severity updated to 8", function() {
+    expect(res.body.data.severity).to.equal(8);
+  });
+}

@@ -1,0 +1,21 @@
+meta {
+  name: Delete emergency contact
+  type: http
+  seq: 95
+}
+
+delete {
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/emergency-contacts/{{emergencyContactId}}
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.status).to.equal(204);
+  });
+}

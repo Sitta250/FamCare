@@ -1,15 +1,21 @@
 meta {
-  name: Delete Family Member
+  name: Delete family member (soft delete)
   type: http
-  seq: 5
+  seq: 98
 }
 
 delete {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.status).to.equal(204);
+  });
 }

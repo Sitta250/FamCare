@@ -1,0 +1,29 @@
+meta {
+  name: Upload document — missing type returns 400
+  type: http
+  seq: 6
+}
+
+post {
+  url: {{baseUrl}}/api/v1/documents
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  familyMemberId: {{memberId}}
+  file: @file(./fixtures/sample.jpg)
+}
+
+tests {
+  test("status is 400", function() {
+    expect(res.status).to.equal(400);
+  });
+  test("code is BAD_REQUEST", function() {
+    expect(res.body.code).to.equal("BAD_REQUEST");
+  });
+}

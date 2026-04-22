@@ -1,15 +1,24 @@
 meta {
-  name: Get Family Member
+  name: Get family member
   type: http
   seq: 3
 }
 
 get {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("id matches env memberId", function() {
+    expect(res.body.data.id).to.equal(bru.getEnvVar("memberId"));
+  });
 }

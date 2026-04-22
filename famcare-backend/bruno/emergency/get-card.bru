@@ -1,0 +1,30 @@
+meta {
+  name: Get shareable emergency card
+  type: http
+  seq: 2
+}
+
+get {
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/emergency-card
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("data has name", function() {
+    expect(res.body.data.name).to.be.a("string");
+  });
+  test("emergencyContacts is array", function() {
+    expect(res.body.data.emergencyContacts).to.be.an("array");
+  });
+  test("medications is array", function() {
+    expect(res.body.data.medications).to.be.an("array");
+  });
+}

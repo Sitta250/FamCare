@@ -1,0 +1,24 @@
+meta {
+  name: List health metrics — filter by type
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/health-metrics?familyMemberId={{memberId}}&type=BLOOD_PRESSURE
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("every row is BLOOD_PRESSURE", function() {
+    for (const m of res.body.data) expect(m.type).to.equal("BLOOD_PRESSURE");
+  });
+}

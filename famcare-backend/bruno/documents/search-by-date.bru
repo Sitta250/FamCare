@@ -1,0 +1,21 @@
+meta {
+  name: Search documents by Bangkok calendar date
+  type: http
+  seq: 4
+}
+
+get {
+  url: {{baseUrl}}/api/v1/documents?familyMemberId={{memberId}}&date=2026-04-22
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+}

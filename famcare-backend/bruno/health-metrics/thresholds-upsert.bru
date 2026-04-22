@@ -1,0 +1,35 @@
+meta {
+  name: Upsert BLOOD_PRESSURE threshold
+  type: http
+  seq: 7
+}
+
+put {
+  url: {{baseUrl}}/api/v1/health-metrics/{{memberId}}/thresholds/BLOOD_PRESSURE
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "minValue": 100,
+    "maxValue": 140,
+    "minValue2": 60,
+    "maxValue2": 90,
+    "unit": "mmHg"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("threshold values echoed", function() {
+    expect(res.body.data.maxValue).to.equal(140);
+    expect(res.body.data.maxValue2).to.equal(90);
+  });
+}

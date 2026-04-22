@@ -1,17 +1,17 @@
 meta {
-  name: Create Family Member
+  name: Create family member
   type: http
   seq: 2
 }
 
 post {
-  url: http://localhost:3000/api/v1/family-members
+  url: {{baseUrl}}/api/v1/family-members
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
@@ -21,6 +21,24 @@ body:json {
     "dateOfBirth": "1960-05-15",
     "bloodType": "A",
     "allergies": "penicillin",
-    "conditions": "diabetes"
+    "conditions": "diabetes",
+    "preferredHospital": "Bumrungrad",
+    "missedDoseAlertsEnabled": true
   }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("data.id is a non-empty string", function() {
+    expect(res.body.data.id).to.be.a("string").and.not.equal("");
+  });
+  test("createdAt ends in +07:00", function() {
+    expect(res.body.data.createdAt).to.match(/\+07:00$/);
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("memberId", res.body.data.id);
 }

@@ -1,15 +1,24 @@
 meta {
-  name: Get Family Member - Forbidden (wrong user)
+  name: Get family member — unrelated user is 403
   type: http
-  seq: 6
+  seq: 5
 }
 
 get {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: other-user-999
+  x-line-userid: unrelated-user-xyz
+}
+
+tests {
+  test("status is 403", function() {
+    expect(res.status).to.equal(403);
+  });
+  test("code is FORBIDDEN", function() {
+    expect(res.body.code).to.equal("FORBIDDEN");
+  });
 }

@@ -1,15 +1,21 @@
 meta {
-  name: Revoke Access
+  name: Revoke access
   type: http
-  seq: 3
+  seq: 97
 }
 
 delete {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}/access/{{grantedToUserId}}
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/access/{{caregiverUserId}}
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: owner-line-id
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 204", function() {
+    expect(res.status).to.equal(204);
+  });
 }

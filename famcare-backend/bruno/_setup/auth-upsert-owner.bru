@@ -1,0 +1,29 @@
+meta {
+  name: Auth — upsert OWNER via GET /me
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/me
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+  x-line-displayname: Bruno Owner
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("returns user payload", function() {
+    expect(res.body.data).to.have.property("lineUserId");
+    expect(res.body.data.lineUserId).to.equal("test-user-001");
+  });
+  test("chatMode defaults to PRIVATE", function() {
+    expect(["PRIVATE", "GROUP"]).to.include(res.body.data.chatMode);
+  });
+}

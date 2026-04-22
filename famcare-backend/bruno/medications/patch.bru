@@ -1,0 +1,30 @@
+meta {
+  name: Patch medication (decrement quantity)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "quantity": 5
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("quantity updated", function() {
+    expect(res.body.data.quantity).to.equal(5);
+  });
+}

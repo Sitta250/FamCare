@@ -1,0 +1,27 @@
+meta {
+  name: List appointments — view=upcoming
+  type: http
+  seq: 3
+}
+
+get {
+  url: {{baseUrl}}/api/v1/appointments?familyMemberId={{memberId}}&view=upcoming
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("all statuses are not CANCELLED", function() {
+    const list = res.body.data;
+    for (const a of list) {
+      expect(a.status).to.not.equal("CANCELLED");
+    }
+  });
+}

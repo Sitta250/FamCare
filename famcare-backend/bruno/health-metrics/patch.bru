@@ -1,0 +1,30 @@
+meta {
+  name: Patch health metric
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/health-metrics/{{metricId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "note": "แก้ไขบันทึก"
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("note updated", function() {
+    expect(res.body.data.note).to.equal("แก้ไขบันทึก");
+  });
+}

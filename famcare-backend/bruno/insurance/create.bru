@@ -1,0 +1,47 @@
+meta {
+  name: Create insurance card with photos
+  type: http
+  seq: 1
+}
+
+post {
+  url: {{baseUrl}}/api/v1/insurance
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  familyMemberId: {{memberId}}
+  companyName: BUPA Thailand
+  policyNumber: POL123456789
+  policyHolderName: Somchai T.
+  expirationDate: 2027-06-30
+  customerServicePhone: +6621234567
+  emergencyPhone: +6629876543
+  allowViewerFullAccess: false
+  frontPhoto: @file(./fixtures/sample.jpg)
+  backPhoto: @file(./fixtures/sample.jpg)
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("card returned", function() {
+    expect(res.body.data.id).to.be.a("string");
+  });
+  test("policyNumber stored unmasked for owner", function() {
+    expect(res.body.data.policyNumber).to.equal("POL123456789");
+  });
+  test("status computed (ACTIVE / EXPIRING / EXPIRED)", function() {
+    expect(["ACTIVE", "EXPIRING", "EXPIRED"]).to.include(res.body.data.status);
+  });
+}
+
+script:post-response {
+  bru.setEnvVar("insuranceId", res.body.data.id);
+}

@@ -1,0 +1,30 @@
+meta {
+  name: Get medication adherence
+  type: http
+  seq: 9
+}
+
+get {
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}/adherence
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("shape is {taken, missed, skipped, total, adherencePct}", function() {
+    expect(res.body.data).to.have.all.keys(
+      "medicationId", "from", "to", "taken", "missed", "skipped", "total", "adherencePct"
+    );
+  });
+  test("window dates are Bangkok ISO", function() {
+    expect(res.body.data.from).to.match(/\+07:00$/);
+    expect(res.body.data.to).to.match(/\+07:00$/);
+  });
+}

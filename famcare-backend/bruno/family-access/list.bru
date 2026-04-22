@@ -1,15 +1,24 @@
 meta {
-  name: List Access
+  name: List access grants for member
   type: http
   seq: 2
 }
 
 get {
-  url: http://localhost:3000/api/v1/family-members/{{memberId}}/access
+  url: {{baseUrl}}/api/v1/family-members/{{memberId}}/access
   body: none
   auth: none
 }
 
 headers {
-  x-line-userid: owner-line-id
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("data is an array", function() {
+    expect(res.body.data).to.be.an("array");
+  });
 }

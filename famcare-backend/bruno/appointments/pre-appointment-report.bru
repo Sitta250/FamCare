@@ -1,0 +1,30 @@
+meta {
+  name: Get pre-appointment report
+  type: http
+  seq: 7
+}
+
+get {
+  url: {{baseUrl}}/api/v1/appointments/{{appointmentId}}/pre-appointment-report
+  body: none
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("contains appointment + adherence + metrics + questions", function() {
+    expect(res.body.data).to.have.property("appointment");
+    expect(res.body.data).to.have.property("medicationAdherence");
+    expect(res.body.data).to.have.property("recentHealthMetrics");
+    expect(res.body.data).to.have.property("suggestedQuestions");
+  });
+  test("windowStart is Bangkok ISO", function() {
+    expect(res.body.data.windowStart).to.match(/\+07:00$/);
+  });
+}

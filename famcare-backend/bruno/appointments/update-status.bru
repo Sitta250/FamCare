@@ -1,22 +1,31 @@
 meta {
-  name: Update Appointment Status
+  name: Update appointment — mark COMPLETED
   type: http
-  seq: 3
+  seq: 6
 }
 
 patch {
-  url: http://localhost:3000/api/v1/appointments/{{appointmentId}}
+  url: {{baseUrl}}/api/v1/appointments/{{appointmentId}}
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
   {
     "status": "COMPLETED",
-    "postNotes": "หมอแนะนำให้ลดน้ำตาล"
+    "postNotes": "ค่าน้ำตาลลดลง ปรับยา"
   }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("appointment status is COMPLETED", function() {
+    expect(res.body.data.status).to.equal("COMPLETED");
+  });
 }

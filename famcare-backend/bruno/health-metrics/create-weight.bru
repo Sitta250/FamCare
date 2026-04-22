@@ -1,0 +1,34 @@
+meta {
+  name: Create health metric (WEIGHT)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/api/v1/health-metrics
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "familyMemberId": "{{memberId}}",
+    "type": "WEIGHT",
+    "value": 62.5,
+    "unit": "kg",
+    "measuredAt": "2026-04-22T07:10:00+07:00"
+  }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("isAbnormal is false for WEIGHT", function() {
+    expect(res.body.data.isAbnormal).to.equal(false);
+  });
+}

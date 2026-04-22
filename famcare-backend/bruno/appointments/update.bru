@@ -1,0 +1,31 @@
+meta {
+  name: Update appointment (reschedule)
+  type: http
+  seq: 5
+}
+
+patch {
+  url: {{baseUrl}}/api/v1/appointments/{{appointmentId}}
+  body: json
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:json {
+  {
+    "appointmentAt": "2026-06-02T10:00:00+07:00",
+    "reminderOffsets": [7200000, 86400000]
+  }
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("appointmentAt reflects new date", function() {
+    expect(res.body.data.appointmentAt).to.match(/2026-06-02T/);
+  });
+}

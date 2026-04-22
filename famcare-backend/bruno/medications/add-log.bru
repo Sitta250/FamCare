@@ -1,22 +1,34 @@
 meta {
-  name: Add Medication Log
+  name: Log medication dose (TAKEN)
   type: http
-  seq: 2
+  seq: 7
 }
 
 post {
-  url: http://localhost:3000/api/v1/medications/{{medicationId}}/logs
+  url: {{baseUrl}}/api/v1/medications/{{medicationId}}/logs
   body: json
   auth: none
 }
 
 headers {
-  x-line-userid: test-line-1
+  x-line-userid: {{ownerUserId}}
 }
 
 body:json {
   {
     "status": "TAKEN",
-    "takenAt": "2026-04-12T08:00:00.000Z"
+    "takenAt": "2026-04-22T08:05:00+07:00"
   }
+}
+
+tests {
+  test("status is 201", function() {
+    expect(res.status).to.equal(201);
+  });
+  test("log status is TAKEN", function() {
+    expect(res.body.data.status).to.equal("TAKEN");
+  });
+  test("takenAt is Bangkok ISO", function() {
+    expect(res.body.data.takenAt).to.match(/\+07:00$/);
+  });
 }

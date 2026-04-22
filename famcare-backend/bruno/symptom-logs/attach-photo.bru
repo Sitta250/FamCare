@@ -1,0 +1,28 @@
+meta {
+  name: Attach photo to symptom log
+  type: http
+  seq: 5
+}
+
+post {
+  url: {{baseUrl}}/api/v1/symptom-logs/{{symptomLogId}}/photo
+  body: multipartForm
+  auth: none
+}
+
+headers {
+  x-line-userid: {{ownerUserId}}
+}
+
+body:multipart-form {
+  file: @file(./fixtures/sample.jpg)
+}
+
+tests {
+  test("status is 200", function() {
+    expect(res.status).to.equal(200);
+  });
+  test("photoUrl returned", function() {
+    expect(res.body.data.photoUrl).to.be.a("string");
+  });
+}
