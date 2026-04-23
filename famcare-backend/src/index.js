@@ -27,10 +27,17 @@ if (process.env.LINE_CHANNEL_SECRET) {
     (req, res, next) => {
       verifySignature(req, res, (err) => {
         if (err) {
+          // LINE verify and misconfigured probes can hit this path. The
+          // request stream is usually already consumed by the signature
+          // middleware, so we can't safely re-parse the body. Ack 200
+          // so LINE's webhook verify never sees a non-2xx response.
           console.warn(
-            `[webhook] signature check skipped: ${err.message || err}`
+            `[webhook] signature check failed, acking 200: ${err.message || err}`
           );
-          return express.json()(req, res, next);
+          if (!res.headersSent) {
+            res.status(200).send();
+          }
+          return;
         }
         return next();
       });

@@ -65,7 +65,10 @@ function buildApp({ withSecret }) {
       (req, res, next) => {
         verifySignature(req, res, (err) => {
           if (err) {
-            return express.json()(req, res, next)
+            if (!res.headersSent) {
+              res.status(200).send()
+            }
+            return
           }
           return next()
         })
