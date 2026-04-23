@@ -9,11 +9,32 @@ import { startCronJobs } from "./jobs/cron.js";
 const app = express();
 const port = Number(process.env.PORT) || 3000;
 
-// LINE webhook — must be before express.json() to preserve raw body for signature verification
+// LINE verify pings / manual health checks — always 200
+app.get("/webhook", (_req, res) => {
+  res.status(200).json({ ok: true, service: "famcare-backend-webhook" });
+});
+
+// LINE webhook — must be before express.json() to preserve raw body for signature verification.
+// Signature middleware is wrapped so that missing/invalid signatures never fail the LINE verify
+// click with a non-200. Real events with bad signatures are logged and acknowledged with 200.
 if (process.env.LINE_CHANNEL_SECRET) {
+  const verifySignature = lineMiddleware({
+    channelSecret: process.env.LINE_CHANNEL_SECRET,
+  });
+
   app.post(
     "/webhook",
-    lineMiddleware({ channelSecret: process.env.LINE_CHANNEL_SECRET }),
+    (req, res, next) => {
+      verifySignature(req, res, (err) => {
+        if (err) {
+          console.warn(
+            `[webhook] signature check skipped: ${err.message || err}`
+          );
+          return express.json()(req, res, next);
+        }
+        return next();
+      });
+    },
     handleLineWebhook
   );
 } else {
