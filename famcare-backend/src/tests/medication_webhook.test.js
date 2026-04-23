@@ -200,4 +200,29 @@ describe('handleLineWebhook — log_medication postback', () => {
     expect(Number.isFinite(new Date(payload.takenAt).getTime())).toBe(true)
     expect(new Date(payload.takenAt).getTime()).toBeGreaterThanOrEqual(before)
   })
+
+  test('handles missing source.userId gracefully', async () => {
+    const req = {
+      body: {
+        events: [
+          {
+            type: 'postback',
+            replyToken: 'reply-token-1',
+            source: {},
+            postback: { data: JSON.stringify({ action: 'log_medication', medicationId: 'med-1', status: 'TAKEN' }) },
+          },
+        ],
+      },
+    }
+    const res = makeRes()
+
+    await handleLineWebhook(req, res)
+
+    expect(mockFindOrCreateByLineUserId).not.toHaveBeenCalled()
+    expect(mockCreateMedicationLog).not.toHaveBeenCalled()
+    expect(mockReplyMessage).toHaveBeenCalledWith({
+      replyToken: 'reply-token-1',
+      messages: [{ type: 'text', text: 'FamCare received your message' }],
+    })
+  })
 })

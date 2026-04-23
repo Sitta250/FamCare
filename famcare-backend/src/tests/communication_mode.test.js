@@ -537,96 +537,34 @@ describe('handleLineWebhook text messages', () => {
     }
   }
 
-  test('creates an appointment from Thai text and fans out to family', async () => {
-    jest.useFakeTimers()
-    jest.setSystemTime(new Date('2026-04-15T03:00:00Z'))
-
-    const req = makeTextReq('นัดหมอพรุ่งนี้ 10 โมง')
-    const res = makeRes()
-
-    await handleLineWebhook(req, res)
-
-    expect(mockCreateAppointment).toHaveBeenCalledWith(USER_ID, {
-      familyMemberId: MEMBER_ID,
-      title: 'นัดหมอ',
-      appointmentAt: utcInstantFromBangkokYmdHm('2026-04-16', '10:00'),
-    })
-    expect(mockSendLinePushToUser).toHaveBeenCalledWith(
-      CAREGIVER_LINE_ID,
-      '📅 Test User เพิ่มนัดหมาย "นัดหมอ"'
-    )
-    expect(mockReplyMessage).toHaveBeenCalledWith({
-      replyToken: 'reply-token-1',
-      messages: [{ type: 'text', text: '✅ เพิ่มนัดหมาย "นัดหมอ" เรียบร้อยแล้ว\nวันที่: 2026-04-16T10:00:00.000+07:00' }],
-    })
-
-    jest.useRealTimers()
-  })
-
-  test('updates chat mode for mode commands', async () => {
-    const req = makeTextReq('โหมดกลุ่ม')
-    const res = makeRes()
-
-    await handleLineWebhook(req, res)
-
-    expect(mockUserUpdate).toHaveBeenCalledWith({
-      where: { id: USER_ID },
-      data: { chatMode: 'GROUP' },
-    })
-    expect(mockReplyMessage).toHaveBeenCalledWith({
-      replyToken: 'reply-token-1',
-      messages: [{ type: 'text', text: '✅ เปลี่ยนเป็นโหมดกลุ่มแล้ว' }],
-    })
-  })
-
-  test('replies with usage hint for unknown text', async () => {
+  test('replies with deterministic webhook-loop confirmation text', async () => {
     const req = makeTextReq('สวัสดี')
     const res = makeRes()
 
     await handleLineWebhook(req, res)
 
     expect(mockCreateAppointment).not.toHaveBeenCalled()
+    expect(mockUserUpdate).not.toHaveBeenCalled()
     expect(mockReplyMessage).toHaveBeenCalledWith({
       replyToken: 'reply-token-1',
-      messages: [{
-        type: 'text',
-        text: "สวัสดี! ส่ง 'นัดหมอพรุ่งนี้ 10 โมง' เพื่อเพิ่มนัดหมาย\nหรือ 'โหมดกลุ่ม'/'โหมดส่วนตัว' เพื่อตั้งค่าการแจ้งเตือน",
-      }],
+      messages: [{ type: 'text', text: 'FamCare received your message' }],
     })
   })
 
-  test('prompts for date and time when appointment intent has no parseable datetime', async () => {
-    const req = makeTextReq('นัด')
+  test('replies safely when source.userId is missing', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    const req = makeTextReq('hello')
+    req.body.events[0].source = {}
     const res = makeRes()
 
     await handleLineWebhook(req, res)
 
-    expect(mockCreateAppointment).not.toHaveBeenCalled()
+    expect(mockUserUpsert).not.toHaveBeenCalled()
     expect(mockReplyMessage).toHaveBeenCalledWith({
       replyToken: 'reply-token-1',
-      messages: [{
-        type: 'text',
-        text: "📅 กรุณาระบุวันและเวลาของนัดหมาย เช่น 'นัดหมอพรุ่งนี้ 10 โมง'",
-      }],
+      messages: [{ type: 'text', text: 'FamCare received your message' }],
     })
-  })
-
-  test('replies gracefully when user has no owned family member', async () => {
-    mockUserFindUnique.mockResolvedValue({
-      id: USER_ID,
-      lineUserId: LINE_ID,
-      familyMembers: [],
-    })
-
-    const req = makeTextReq('นัดหมอพรุ่งนี้ 10 โมง')
-    const res = makeRes()
-
-    await handleLineWebhook(req, res)
-
-    expect(mockCreateAppointment).not.toHaveBeenCalled()
-    expect(mockReplyMessage).toHaveBeenCalledWith({
-      replyToken: 'reply-token-1',
-      messages: [{ type: 'text', text: 'กรุณาเพิ่มสมาชิกในครอบครัวก่อน' }],
-    })
+    expect(warnSpy).toHaveBeenCalled()
+    warnSpy.mockRestore()
   })
 })

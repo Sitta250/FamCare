@@ -1,11 +1,9 @@
 import { messagingApi } from '@line/bot-sdk'
 import { prisma } from '../lib/prisma.js'
-import { findOrCreateByLineUserId, updateChatMode } from '../services/userService.js'
+import { findOrCreateByLineUserId } from '../services/userService.js'
 import { createAppointment } from '../services/appointmentService.js'
 import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medicationService.js'
 import { uploadBuffer } from '../services/cloudinaryService.js'
-import { parseIntent } from '../services/thaiNlpService.js'
-import { fanoutToFamily } from '../services/caregiverNotifyService.js'
 
 let lineClient = null
 
@@ -26,72 +24,30 @@ function reply(client, replyToken, text) {
   })
 }
 
+function getLineUserId(event) {
+  return event?.source?.userId ?? null
+}
+
+async function guardLineUserId(event, client) {
+  const lineUserId = getLineUserId(event)
+  if (lineUserId) return lineUserId
+
+  console.warn('[webhook] missing source.userId on event:', JSON.stringify({
+    type: event?.type,
+    sourceType: event?.source?.type ?? null,
+  }))
+  await reply(client, event?.replyToken, 'FamCare received your message')
+  return null
+}
+
 // ── Text message handling ────────────────────────────────────────────────────
 
 async function handleTextMessage(event) {
   const client = getLineClient()
-  const text = event.message.text.trim()
-  const lineUserId = event.source.userId
-  const intent = parseIntent(text)
+  const lineUserId = await guardLineUserId(event, client)
+  if (!lineUserId) return
 
-  if (intent.intent === 'chatMode') {
-    try {
-      const user = await findOrCreateByLineUserId(lineUserId)
-      await updateChatMode(user.id, intent.data.mode)
-      const modeText = intent.data.mode === 'GROUP' ? 'โหมดกลุ่ม' : 'โหมดส่วนตัว'
-      return reply(client, event.replyToken, `✅ เปลี่ยนเป็น${modeText}แล้ว`)
-    } catch (err) {
-      console.error('[webhook] chatMode update failed:', err.message)
-      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
-    }
-  }
-
-  if (intent.intent === 'appointment') {
-    if (!intent.data.appointmentAt) {
-      return reply(
-        client,
-        event.replyToken,
-        "📅 กรุณาระบุวันและเวลาของนัดหมาย เช่น 'นัดหมอพรุ่งนี้ 10 โมง'"
-      )
-    }
-
-    try {
-      const user = await findOrCreateByLineUserId(lineUserId)
-      const member = await findFirstOwnedFamilyMember(lineUserId)
-
-      if (!member) {
-        return reply(client, event.replyToken, 'กรุณาเพิ่มสมาชิกในครอบครัวก่อน')
-      }
-
-      const appt = await createAppointment(user.id, {
-        familyMemberId: member.id,
-        title: intent.data.title,
-        appointmentAt: intent.data.appointmentAt,
-      })
-
-      fanoutToFamily(
-        member.id,
-        user.id,
-        `📅 ${user.displayName || 'ผู้ใช้'} เพิ่มนัดหมาย "${appt.title}"`,
-        'appointmentReminders'
-      ).catch((err) => console.error('[webhook] appointment fanout failed:', err.message))
-
-      return reply(
-        client,
-        event.replyToken,
-        `✅ เพิ่มนัดหมาย "${appt.title}" เรียบร้อยแล้ว\nวันที่: ${appt.appointmentAt}`
-      )
-    } catch (err) {
-      console.error('[webhook] appointment from text failed:', err.message)
-      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
-    }
-  }
-
-  return reply(
-    client,
-    event.replyToken,
-    "สวัสดี! ส่ง 'นัดหมอพรุ่งนี้ 10 โมง' เพื่อเพิ่มนัดหมาย\nหรือ 'โหมดกลุ่ม'/'โหมดส่วนตัว' เพื่อตั้งค่าการแจ้งเตือน"
-  )
+  return reply(client, event.replyToken, 'FamCare received your message')
 }
 
 // ── Postback handling ────────────────────────────────────────────────────────
@@ -105,7 +61,8 @@ async function handleTextMessage(event) {
 
 async function handlePostback(event) {
   const client = getLineClient()
-  const lineUserId = event.source.userId
+  const lineUserId = await guardLineUserId(event, client)
+  if (!lineUserId) return
 
   let data
   try {
@@ -194,7 +151,8 @@ async function handlePostback(event) {
 
 async function handleAudioMessage(event) {
   const client = getLineClient()
-  const lineUserId = event.source.userId
+  const lineUserId = await guardLineUserId(event, client)
+  if (!lineUserId) return
   const messageId = event.message.id
 
   const contentUrl = `https://api-data.line.me/v2/bot/message/${messageId}/content`
@@ -269,30 +227,21 @@ async function resolveVoiceNoteUrl(messageId, contentUrl) {
   }
 }
 
-async function findFirstOwnedFamilyMember(lineUserId) {
-  const user = await prisma.user.findUnique({
-    where: { lineUserId },
-    include: {
-      familyMembers: { take: 1, orderBy: { createdAt: 'asc' } },
-    },
-  })
-
-  return user?.familyMembers?.[0] ?? null
-}
-
 // ── Main event dispatcher ────────────────────────────────────────────────────
 
 async function handleEvent(event) {
+  const sourceLineUserId = getLineUserId(event) ?? 'unknown'
+
   if (event.type === 'message') {
     const msgType = event.message.type
 
     if (msgType === 'text') {
-      console.log(`[webhook] text from ${event.source.userId}: ${event.message.text}`)
+      console.log(`[webhook] text from ${sourceLineUserId}: ${event.message.text}`)
       return handleTextMessage(event)
     }
 
     if (msgType === 'audio') {
-      console.log(`[webhook] audio from ${event.source.userId}, id: ${event.message.id}`)
+      console.log(`[webhook] audio from ${sourceLineUserId}, id: ${event.message.id}`)
       return handleAudioMessage(event)
     }
 
@@ -301,12 +250,12 @@ async function handleEvent(event) {
   }
 
   if (event.type === 'postback') {
-    console.log(`[webhook] postback from ${event.source.userId}: ${event.postback.data}`)
+    console.log(`[webhook] postback from ${sourceLineUserId}: ${event.postback.data}`)
     return handlePostback(event)
   }
 
   if (event.type === 'follow') {
-    console.log(`[webhook] follow from ${event.source.userId}`)
+    console.log(`[webhook] follow from ${sourceLineUserId}`)
     const client = getLineClient()
     if (client && event.replyToken) {
       await reply(
