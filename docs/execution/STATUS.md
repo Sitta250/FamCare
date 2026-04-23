@@ -42,6 +42,7 @@ All rows link back to [`READINESS_AUDIT.md`](READINESS_AUDIT.md) for route / ser
 - All phases: [`phases/`](phases/)
 - Feature plans: [`features/`](features/)
 - Decisions / drift: [`../decisions/DECISION_LOG.md`](../decisions/DECISION_LOG.md)
+- Live risk tracker: [`../operations/RISK_REGISTER.md`](../operations/RISK_REGISTER.md)
 
 ## Agent Workflow
 
