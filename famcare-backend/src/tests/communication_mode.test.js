@@ -459,6 +459,23 @@ describe('handleLineWebhook audio messages', () => {
     }
   }
 
+  test('upserts user on first audio message contact', async () => {
+    const req = makeAudioReq('audio-upsert')
+    const res = makeRes()
+
+    await handleLineWebhook(req, res)
+
+    expect(mockUserUpsert).toHaveBeenCalledWith({
+      where: { lineUserId: LINE_ID },
+      update: {},
+      create: {
+        lineUserId: LINE_ID,
+        displayName: 'LINE User',
+        photoUrl: null,
+      },
+    })
+  })
+
   test('uploads LINE audio to Cloudinary and stores secure_url on voiceNoteUrl', async () => {
     const req = makeAudioReq('audio-456')
     const res = makeRes()
@@ -548,6 +565,23 @@ describe('handleLineWebhook text messages', () => {
     expect(mockReplyMessage).toHaveBeenCalledWith({
       replyToken: 'reply-token-1',
       messages: [{ type: 'text', text: 'FamCare received your message' }],
+    })
+  })
+
+  test('upserts user on first text message contact', async () => {
+    const req = makeTextReq('hello')
+    const res = makeRes()
+
+    await handleLineWebhook(req, res)
+
+    expect(mockUserUpsert).toHaveBeenCalledWith({
+      where: { lineUserId: LINE_ID },
+      update: {},
+      create: {
+        lineUserId: LINE_ID,
+        displayName: 'LINE User',
+        photoUrl: null,
+      },
     })
   })
 

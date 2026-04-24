@@ -47,6 +47,8 @@ async function handleTextMessage(event) {
   const lineUserId = await guardLineUserId(event, client)
   if (!lineUserId) return
 
+  await findOrCreateByLineUserId(lineUserId)
+
   return reply(client, event.replyToken, 'FamCare received your message')
 }
 
@@ -159,15 +161,16 @@ async function handleAudioMessage(event) {
   console.log(`[webhook] audio from ${lineUserId}, contentUrl: ${contentUrl}`)
 
   try {
-    // Find the user's first owned family member to associate the audio
-    const user = await prisma.user.findUnique({
-      where: { lineUserId },
+    const user = await findOrCreateByLineUserId(lineUserId)
+
+    const fullUser = await prisma.user.findUnique({
+      where: { id: user.id },
       include: {
         familyMembers: { take: 1, orderBy: { createdAt: 'asc' } },
       },
     })
 
-    const member = user?.familyMembers?.[0]
+    const member = fullUser?.familyMembers?.[0]
     if (member) {
       const voiceNoteUrl = await resolveVoiceNoteUrl(messageId, contentUrl)
       await prisma.symptomLog.create({
@@ -256,6 +259,9 @@ async function handleEvent(event) {
 
   if (event.type === 'follow') {
     console.log(`[webhook] follow from ${sourceLineUserId}`)
+    if (sourceLineUserId !== 'unknown') {
+      await findOrCreateByLineUserId(sourceLineUserId)
+    }
     const client = getLineClient()
     if (client && event.replyToken) {
       await reply(

@@ -3,6 +3,7 @@ import express from "express";
 import { validateSignature } from "@line/bot-sdk";
 import { errorHandler } from "./middleware/errorHandler.js";
 import apiRouter from "./routes/index.js";
+import testRouter from "./routes/test.js";
 import { handleLineWebhook } from "./webhook/handler.js";
 import { startCronJobs } from "./jobs/cron.js";
 
@@ -82,6 +83,7 @@ app.get("/api/v1/health", (_req, res) => {
 });
 
 app.use("/api/v1", apiRouter);
+app.use("/api/v1/test", testRouter);
 
 app.use(errorHandler);
 
