@@ -12,6 +12,11 @@ function getClient() {
 }
 
 export async function sendLinePushToUser(lineUserId, text) {
+  if (typeof lineUserId !== 'string' || lineUserId.trim().length === 0) {
+    console.warn('[push] skip send: missing/invalid lineUserId')
+    return
+  }
+
   const client = getClient()
   if (!client) {
     console.log(`[push] (no token) → ${lineUserId}: ${text}`)

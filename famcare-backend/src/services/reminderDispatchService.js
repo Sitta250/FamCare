@@ -3,6 +3,12 @@ import { sendLinePushToUser } from './linePushService.js'
 import { parseNotificationPrefs } from './familyAccessService.js'
 import { toBangkokISO } from '../utils/datetime.js'
 
+function normalizeLineUserId(value) {
+  if (typeof value !== 'string') return null
+  const normalized = value.trim()
+  return normalized.length > 0 ? normalized : null
+}
+
 export async function dispatchDueReminders() {
   const now = new Date()
   const window = new Date(now.getTime() + 5 * 60 * 1000)
@@ -37,14 +43,35 @@ export async function dispatchDueReminders() {
 
       // Collect distinct LINE user ids: owner + caregivers
       const recipients = new Map()
-      recipients.set(familyMember.owner.id, familyMember.owner.lineUserId)
+      const ownerLineUserId = normalizeLineUserId(familyMember.owner.lineUserId)
+      if (ownerLineUserId) {
+        recipients.set(familyMember.owner.id, ownerLineUserId)
+      } else {
+        console.warn(
+          `[reminder] skip owner recipient for reminder ${reminder.id}: missing/invalid lineUserId (user ${familyMember.owner.id})`
+        )
+      }
       if (familyMember.owner.chatMode === 'GROUP') {
         for (const access of familyMember.accessList) {
           const prefs = parseNotificationPrefs(access.notificationPrefs)
           if (prefs.appointmentReminders) {
-            recipients.set(access.grantedTo.id, access.grantedTo.lineUserId)
+            const caregiverLineUserId = normalizeLineUserId(access.grantedTo.lineUserId)
+            if (caregiverLineUserId) {
+              recipients.set(access.grantedTo.id, caregiverLineUserId)
+            } else {
+              console.warn(
+                `[reminder] skip caregiver recipient for reminder ${reminder.id}: missing/invalid lineUserId (user ${access.grantedTo.id})`
+              )
+            }
           }
         }
+      }
+
+      if (recipients.size === 0) {
+        console.warn(
+          `[reminder] skip reminder ${reminder.id}: no valid LINE recipients for appointment ${appointment.id}`
+        )
+        continue
       }
 
       const timeStr = toBangkokISO(appointment.appointmentAt)

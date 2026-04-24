@@ -245,6 +245,117 @@ describe('dispatchDueReminders — window and delivery', () => {
     expect(mockSendLinePush).toHaveBeenCalledWith(LINE_ID, expect.stringContaining('Checkup'))
     expect(mockSendLinePush).toHaveBeenCalledWith('U_caregiver_1', expect.stringContaining('Checkup'))
   })
+
+  test('skips owner with invalid lineUserId and still sends to valid caregiver', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: '   ', chatMode: 'GROUP' },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: JSON.stringify({ appointmentReminders: true }),
+                grantedTo: { id: 'caregiver-1', lineUserId: 'U_caregiver_1' },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePush).toHaveBeenCalledWith('U_caregiver_1', expect.stringContaining('Checkup'))
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('skip owner recipient for reminder')
+    )
+    warnSpy.mockRestore()
+  })
+
+  test('skips caregiver with invalid lineUserId and still sends to owner', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: LINE_ID, chatMode: 'GROUP' },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: JSON.stringify({ appointmentReminders: true }),
+                grantedTo: { id: 'caregiver-1', lineUserId: '' },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePush).toHaveBeenCalledWith(LINE_ID, expect.stringContaining('Checkup'))
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('skip caregiver recipient for reminder')
+    )
+    warnSpy.mockRestore()
+  })
+
+  test('skips reminder when all recipients are invalid and does not mark sent', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: ' ', chatMode: 'GROUP' },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: JSON.stringify({ appointmentReminders: true }),
+                grantedTo: { id: 'caregiver-1', lineUserId: null },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).not.toHaveBeenCalled()
+    expect(mockReminderUpdateMany).not.toHaveBeenCalled()
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('no valid LINE recipients')
+    )
+    warnSpy.mockRestore()
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
