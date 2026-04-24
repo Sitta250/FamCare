@@ -180,5 +180,13 @@ export async function deleteAppointment(actorUserId, appointmentId) {
   const appt = await prisma.appointment.findUnique({ where: { id: appointmentId } })
   if (!appt) throw Object.assign(new Error('Appointment not found'), { status: 404, code: 'NOT_FOUND' })
   await assertCanWriteMember(actorUserId, appt.familyMemberId)
-  await prisma.appointment.delete({ where: { id: appointmentId } })
+
+  if (appt.status !== 'CANCELLED') {
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { status: 'CANCELLED' },
+    })
+  }
+
+  await deleteUnsentReminders(appointmentId)
 }
