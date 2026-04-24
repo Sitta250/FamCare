@@ -32,11 +32,24 @@ jest.unstable_mockModule('../services/userService.js', () => ({
 
 jest.unstable_mockModule('../services/appointmentService.js', () => ({
   createAppointment: mockCreateAppointment,
+  listAppointments: jest.fn().mockResolvedValue([]),
 }))
 
 jest.unstable_mockModule('../services/medicationService.js', () => ({
   createMedicationLog: mockCreateMedicationLog,
   MEDICATION_LOG_STATUSES: new Set(['TAKEN', 'MISSED', 'SKIPPED']),
+}))
+
+jest.unstable_mockModule('../services/aiService.js', () => ({
+  handleAiMessage: jest.fn().mockResolvedValue('mock AI reply'),
+}))
+
+jest.unstable_mockModule('../services/familyMemberService.js', () => ({
+  listFamilyMembers: jest.fn().mockResolvedValue([]),
+  createFamilyMember: jest.fn(),
+  getFamilyMember: jest.fn(),
+  updateFamilyMember: jest.fn(),
+  deleteFamilyMember: jest.fn(),
 }))
 
 process.env.LINE_CHANNEL_ACCESS_TOKEN = 'test-token'

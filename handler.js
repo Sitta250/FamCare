@@ -44,8 +44,6 @@ async function guardLineUserId(event, client) {
 
 // ── Text message handling ────────────────────────────────────────────────────
 
-const AI_FALLBACK_TEXT = 'ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
-
 async function handleTextMessage(event) {
   const client = getLineClient()
   const lineUserId = await guardLineUserId(event, client)
@@ -53,15 +51,10 @@ async function handleTextMessage(event) {
 
   const user = await findOrCreateByLineUserId(lineUserId)
 
-  let text
-  try {
-    const familyMembers = await listFamilyMembers(user.id)
-    text = await handleAiMessage(event.message.text, user, familyMembers)
-  } catch (err) {
-    console.error('[webhook] AI message handling failed:', err.message)
-    text = AI_FALLBACK_TEXT
-  }
+  // Load family members so the AI can resolve names → IDs
+  const familyMembers = await listFamilyMembers(user.id)
 
+  const text = await handleAiMessage(event.message.text, user, familyMembers)
   return reply(client, event.replyToken, text)
 }
 

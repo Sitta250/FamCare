@@ -15,6 +15,7 @@ const mockUploadBuffer = jest.fn()
 const mockCreateAppointment = jest.fn()
 const mockSendLinePushToUser = jest.fn()
 const mockGenerateContent = jest.fn()
+const mockHandleAiMessage = jest.fn().mockResolvedValue('mock AI reply')
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
@@ -65,6 +66,19 @@ jest.unstable_mockModule('../services/cloudinaryService.js', () => ({
 
 jest.unstable_mockModule('../services/appointmentService.js', () => ({
   createAppointment: mockCreateAppointment,
+  listAppointments: jest.fn().mockResolvedValue([]),
+}))
+
+jest.unstable_mockModule('../services/aiService.js', () => ({
+  handleAiMessage: mockHandleAiMessage,
+}))
+
+jest.unstable_mockModule('../services/familyMemberService.js', () => ({
+  listFamilyMembers: jest.fn().mockResolvedValue([]),
+  createFamilyMember: jest.fn(),
+  getFamilyMember: jest.fn(),
+  updateFamilyMember: jest.fn(),
+  deleteFamilyMember: jest.fn(),
 }))
 
 jest.unstable_mockModule('../services/linePushService.js', () => ({
@@ -585,7 +599,8 @@ describe('handleLineWebhook text messages', () => {
     }
   }
 
-  test('replies with Gemini-generated text', async () => {
+  test('replies with AI-generated text', async () => {
+    mockHandleAiMessage.mockResolvedValueOnce('สวัสดีจาก AI')
     const req = makeTextReq('สวัสดี')
     const res = makeRes()
 
@@ -593,10 +608,14 @@ describe('handleLineWebhook text messages', () => {
 
     expect(mockCreateAppointment).not.toHaveBeenCalled()
     expect(mockUserUpdate).not.toHaveBeenCalled()
-    expect(mockGenerateContent).toHaveBeenCalledWith(expect.stringContaining('User: สวัสดี'))
+    expect(mockHandleAiMessage).toHaveBeenCalledWith(
+      'สวัสดี',
+      expect.objectContaining({ id: USER_ID }),
+      expect.any(Array),
+    )
     expect(mockReplyMessage).toHaveBeenCalledWith({
       replyToken: 'reply-token-1',
-      messages: [{ type: 'text', text: 'สวัสดีจาก Gemini' }],
+      messages: [{ type: 'text', text: 'สวัสดีจาก AI' }],
     })
   })
 
@@ -634,8 +653,8 @@ describe('handleLineWebhook text messages', () => {
     warnSpy.mockRestore()
   })
 
-  test('sends Thai fallback text when Gemini fails', async () => {
-    mockGenerateContent.mockRejectedValueOnce(new Error('Gemini unavailable'))
+  test('sends Thai fallback text when AI service fails', async () => {
+    mockHandleAiMessage.mockRejectedValueOnce(new Error('AI unavailable'))
     const req = makeTextReq('hello')
     const res = makeRes()
 

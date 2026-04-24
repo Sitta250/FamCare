@@ -26,6 +26,7 @@ jest.unstable_mockModule('../services/userService.js', () => ({
 
 jest.unstable_mockModule('../services/appointmentService.js', () => ({
   createAppointment: jest.fn(),
+  listAppointments: jest.fn().mockResolvedValue([]),
 }))
 
 jest.unstable_mockModule('../services/medicationService.js', () => ({
@@ -35,6 +36,18 @@ jest.unstable_mockModule('../services/medicationService.js', () => ({
 
 jest.unstable_mockModule('../services/cloudinaryService.js', () => ({
   uploadBuffer: jest.fn(),
+}))
+
+jest.unstable_mockModule('../services/aiService.js', () => ({
+  handleAiMessage: jest.fn().mockResolvedValue('mock AI reply'),
+}))
+
+jest.unstable_mockModule('../services/familyMemberService.js', () => ({
+  listFamilyMembers: jest.fn().mockResolvedValue([]),
+  createFamilyMember: jest.fn(),
+  getFamilyMember: jest.fn(),
+  updateFamilyMember: jest.fn(),
+  deleteFamilyMember: jest.fn(),
 }))
 
 const { default: express } = await import('express')
