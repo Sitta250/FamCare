@@ -1,7 +1,7 @@
 import { jest } from '@jest/globals'
 
 const mockReplyMessage = jest.fn()
-let mockVerifyBehavior = 'ok'
+const mockValidateSignature = jest.fn()
 
 jest.unstable_mockModule('@line/bot-sdk', () => ({
   messagingApi: {
@@ -9,16 +9,7 @@ jest.unstable_mockModule('@line/bot-sdk', () => ({
       replyMessage: mockReplyMessage,
     })),
   },
-  middleware: jest.fn(() => (req, _res, next) => {
-    if (mockVerifyBehavior === 'no-signature') {
-      return next(new Error('no signature'))
-    }
-    if (mockVerifyBehavior === 'bad-signature') {
-      return next(new Error('invalid signature'))
-    }
-    req.body = req.body || { events: [] }
-    return next()
-  }),
+  validateSignature: mockValidateSignature,
 }))
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
@@ -48,7 +39,7 @@ jest.unstable_mockModule('../services/cloudinaryService.js', () => ({
 
 const { default: express } = await import('express')
 const { default: supertest } = await import('supertest')
-const { middleware: lineMiddleware } = await import('@line/bot-sdk')
+const { validateSignature } = await import('@line/bot-sdk')
 const { handleLineWebhook } = await import('../webhook/handler.js')
 
 function buildApp({ withSecret }) {
@@ -59,19 +50,39 @@ function buildApp({ withSecret }) {
   })
 
   if (withSecret) {
-    const verifySignature = lineMiddleware({ channelSecret: 'test-secret' })
     app.post(
       '/webhook',
+      express.raw({ type: '*/*' }),
       (req, res, next) => {
-        verifySignature(req, res, (err) => {
-          if (err) {
-            if (!res.headersSent) {
-              res.status(200).send()
-            }
-            return
+        const rawBodyBuffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body ?? '')
+        const rawBodyText = rawBodyBuffer.toString('utf8')
+
+        let payload = {}
+        if (rawBodyText.trim().length > 0) {
+          try {
+            payload = JSON.parse(rawBodyText)
+          } catch {
+            return res.status(400).json({ error: 'invalid json payload' })
           }
-          return next()
-        })
+        }
+
+        const events = Array.isArray(payload?.events) ? payload.events : []
+        if (events.length === 0) {
+          return res.status(200).send()
+        }
+
+        const signature = req.get('x-line-signature')
+        if (!signature) {
+          return res.status(401).json({ error: 'missing signature' })
+        }
+
+        const isValid = validateSignature(rawBodyText, 'test-secret', signature)
+        if (!isValid) {
+          return res.status(401).json({ error: 'invalid signature' })
+        }
+
+        req.body = payload
+        return next()
       },
       handleLineWebhook
     )
@@ -84,7 +95,7 @@ function buildApp({ withSecret }) {
 
 beforeEach(() => {
   mockReplyMessage.mockResolvedValue(undefined)
-  mockVerifyBehavior = 'ok'
+  mockValidateSignature.mockReturnValue(true)
 })
 
 describe('webhook mount', () => {
@@ -94,32 +105,43 @@ describe('webhook mount', () => {
     expect(res.body).toEqual({ ok: true, service: 'famcare-backend-webhook' })
   })
 
-  test('POST /webhook with valid signature ack is 200', async () => {
-    const res = await supertest(buildApp({ withSecret: true }))
-      .post('/webhook')
-      .set('x-line-signature', 'valid')
-      .send({ events: [] })
-    expect(res.status).toBe(200)
-  })
-
-  test('POST /webhook without signature still returns 200 (LINE verify-safe)', async () => {
-    mockVerifyBehavior = 'no-signature'
+  test('POST /webhook with empty events returns 200 without signature', async () => {
     const res = await supertest(buildApp({ withSecret: true }))
       .post('/webhook')
       .send({ events: [] })
     expect(res.status).toBe(200)
+    expect(mockValidateSignature).not.toHaveBeenCalled()
   })
 
-  test('POST /webhook with invalid signature still returns 200', async () => {
-    mockVerifyBehavior = 'bad-signature'
+  test('POST /webhook with non-empty events and missing signature returns 401', async () => {
+    const res = await supertest(buildApp({ withSecret: true }))
+      .post('/webhook')
+      .send({ events: [{ type: 'message', message: { type: 'text', text: 'hi' } }] })
+    expect(res.status).toBe(401)
+    expect(res.body).toEqual({ error: 'missing signature' })
+  })
+
+  test('POST /webhook with non-empty events and invalid signature returns 401', async () => {
+    mockValidateSignature.mockReturnValue(false)
     const res = await supertest(buildApp({ withSecret: true }))
       .post('/webhook')
       .set('x-line-signature', 'bad')
-      .send({ events: [] })
-    expect(res.status).toBe(200)
+      .send({ events: [{ type: 'message', message: { type: 'text', text: 'hi' } }] })
+    expect(res.status).toBe(401)
+    expect(res.body).toEqual({ error: 'invalid signature' })
   })
 
-  test('POST /webhook in dev mode (no secret) returns 200 for empty events', async () => {
+  test('POST /webhook with non-empty events and valid signature returns 200', async () => {
+    mockValidateSignature.mockReturnValue(true)
+    const res = await supertest(buildApp({ withSecret: true }))
+      .post('/webhook')
+      .set('x-line-signature', 'valid')
+      .send({ events: [{ type: 'unknown' }] })
+    expect(res.status).toBe(200)
+    expect(mockValidateSignature).toHaveBeenCalled()
+  })
+
+  test('POST /webhook in dev mode (no secret) still returns 200 for empty events', async () => {
     const res = await supertest(buildApp({ withSecret: false }))
       .post('/webhook')
       .send({ events: [] })

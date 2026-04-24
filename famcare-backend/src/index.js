@@ -1,6 +1,6 @@
 import "dotenv/config";
 import express from "express";
-import { middleware as lineMiddleware } from "@line/bot-sdk";
+import { validateSignature } from "@line/bot-sdk";
 import { errorHandler } from "./middleware/errorHandler.js";
 import apiRouter from "./routes/index.js";
 import { handleLineWebhook } from "./webhook/handler.js";
@@ -14,33 +14,51 @@ app.get("/webhook", (_req, res) => {
   res.status(200).json({ ok: true, service: "famcare-backend-webhook" });
 });
 
-// LINE webhook — must be before express.json() to preserve raw body for signature verification.
-// Signature middleware is wrapped so that missing/invalid signatures never fail the LINE verify
-// click with a non-200. Real events with bad signatures are logged and acknowledged with 200.
+// LINE webhook — must be before express.json() so we can parse raw body once.
+// Verify requests may send empty events. We fast-ack those before signature checks.
+// Real events must still pass signature validation.
 if (process.env.LINE_CHANNEL_SECRET) {
-  const verifySignature = lineMiddleware({
-    channelSecret: process.env.LINE_CHANNEL_SECRET,
-  });
-
   app.post(
     "/webhook",
+    express.raw({ type: "*/*" }),
     (req, res, next) => {
-      verifySignature(req, res, (err) => {
-        if (err) {
-          // LINE verify and misconfigured probes can hit this path. The
-          // request stream is usually already consumed by the signature
-          // middleware, so we can't safely re-parse the body. Ack 200
-          // so LINE's webhook verify never sees a non-2xx response.
-          console.warn(
-            `[webhook] signature check failed, acking 200: ${err.message || err}`
-          );
-          if (!res.headersSent) {
-            res.status(200).send();
-          }
-          return;
+      const rawBodyBuffer =
+        Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body ?? "");
+      const rawBodyText = rawBodyBuffer.toString("utf8");
+
+      let payload = {};
+      if (rawBodyText.trim().length > 0) {
+        try {
+          payload = JSON.parse(rawBodyText);
+        } catch (err) {
+          console.warn(`[webhook] invalid JSON payload: ${err.message || err}`);
+          return res.status(400).json({ error: "invalid json payload" });
         }
-        return next();
-      });
+      }
+
+      const events = Array.isArray(payload?.events) ? payload.events : [];
+      if (events.length === 0) {
+        return res.status(200).send();
+      }
+
+      const signature = req.get("x-line-signature");
+      if (!signature) {
+        console.warn("[webhook] missing x-line-signature for non-empty events");
+        return res.status(401).json({ error: "missing signature" });
+      }
+
+      const isValid = validateSignature(
+        rawBodyText,
+        process.env.LINE_CHANNEL_SECRET,
+        signature
+      );
+      if (!isValid) {
+        console.warn("[webhook] invalid signature for non-empty events");
+        return res.status(401).json({ error: "invalid signature" });
+      }
+
+      req.body = payload;
+      return next();
     },
     handleLineWebhook
   );
