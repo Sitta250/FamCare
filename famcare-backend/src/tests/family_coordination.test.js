@@ -9,6 +9,7 @@ const mockFamilyAccessFindFirst = jest.fn()
 const mockFamilyAccessDeleteMany = jest.fn()
 const mockReminderFindMany = jest.fn()
 const mockReminderUpdateMany = jest.fn()
+const mockUserFindUnique = jest.fn()
 const mockFindOrCreateByLineUserId = jest.fn()
 const mockSendLinePushToUser = jest.fn()
 
@@ -28,6 +29,9 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     reminder: {
       findMany: mockReminderFindMany,
       updateMany: mockReminderUpdateMany,
+    },
+    user: {
+      findUnique: mockUserFindUnique,
     },
   },
 }))
@@ -127,6 +131,11 @@ beforeEach(() => {
   mockFamilyAccessDeleteMany.mockResolvedValue({ count: 1 })
   mockReminderFindMany.mockResolvedValue([])
   mockReminderUpdateMany.mockResolvedValue({ count: 1 })
+  mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+    if (id === OWNER_ID) return { id: OWNER_ID, lineUserId: OWNER_LINE_ID }
+    if (id === INVITEE_ID) return { id: INVITEE_ID, lineUserId: INVITEE_LINE_ID }
+    return null
+  })
   mockFindOrCreateByLineUserId.mockResolvedValue({
     id: INVITEE_ID,
     lineUserId: INVITEE_LINE_ID,

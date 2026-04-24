@@ -6,6 +6,7 @@ const mockReminderUpdateMany = jest.fn()
 const mockReminderDeleteMany = jest.fn()
 const mockReminderCreateMany = jest.fn()
 const mockTransaction        = jest.fn()
+const mockUserFindUnique     = jest.fn()
 
 const mockApptCreate         = jest.fn()
 const mockApptFindUnique     = jest.fn()
@@ -29,6 +30,9 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
       updateMany: mockReminderUpdateMany,
       deleteMany: mockReminderDeleteMany,
       createMany: mockReminderCreateMany,
+    },
+    user: {
+      findUnique: mockUserFindUnique,
     },
     appointment: {
       create:     mockApptCreate,
@@ -144,6 +148,11 @@ beforeEach(() => {
   mockReminderDeleteMany.mockResolvedValue({ count: 0 })
   mockReminderCreateMany.mockResolvedValue({ count: 0 })
   mockTransaction.mockImplementation(async (ops) => Promise.all(ops))
+  mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+    if (id === USER_ID) return { id: USER_ID, lineUserId: LINE_ID }
+    if (id === 'caregiver-1') return { id: 'caregiver-1', lineUserId: 'U_caregiver_1' }
+    return null
+  })
 })
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -248,6 +257,11 @@ describe('dispatchDueReminders — window and delivery', () => {
 
   test('skips owner with invalid lineUserId and still sends to valid caregiver', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+      if (id === USER_ID) return { id: USER_ID, lineUserId: '   ' }
+      if (id === 'caregiver-1') return { id: 'caregiver-1', lineUserId: 'U_caregiver_1' }
+      return null
+    })
     mockReminderFindMany.mockResolvedValue([
       fakeReminder({
         appointment: {
@@ -285,6 +299,11 @@ describe('dispatchDueReminders — window and delivery', () => {
 
   test('skips caregiver with invalid lineUserId and still sends to owner', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+      if (id === USER_ID) return { id: USER_ID, lineUserId: LINE_ID }
+      if (id === 'caregiver-1') return { id: 'caregiver-1', lineUserId: '' }
+      return null
+    })
     mockReminderFindMany.mockResolvedValue([
       fakeReminder({
         appointment: {
@@ -322,6 +341,11 @@ describe('dispatchDueReminders — window and delivery', () => {
 
   test('skips reminder when all recipients are invalid and does not mark sent', async () => {
     const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+      if (id === USER_ID) return { id: USER_ID, lineUserId: ' ' }
+      if (id === 'caregiver-1') return { id: 'caregiver-1', lineUserId: null }
+      return null
+    })
     mockReminderFindMany.mockResolvedValue([
       fakeReminder({
         appointment: {
@@ -353,6 +377,48 @@ describe('dispatchDueReminders — window and delivery', () => {
     expect(mockReminderUpdateMany).not.toHaveBeenCalled()
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('no valid LINE recipients')
+    )
+    warnSpy.mockRestore()
+  })
+
+  test('skips owner when the owner user row cannot be found', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {})
+    mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+      if (id === USER_ID) return null
+      if (id === 'caregiver-1') return { id: 'caregiver-1', lineUserId: 'U_caregiver_1' }
+      return null
+    })
+    mockReminderFindMany.mockResolvedValue([
+      fakeReminder({
+        appointment: {
+          id: APPT_ID,
+          title: 'Checkup',
+          appointmentAt: FUTURE_DATE,
+          hospital: 'City Hospital',
+          doctor: 'Dr. Smith',
+          status: 'UPCOMING',
+          familyMember: {
+            id: MEMBER_ID,
+            name: 'Grandma',
+            owner: { id: USER_ID, lineUserId: LINE_ID, chatMode: 'GROUP' },
+            accessList: [
+              {
+                id: 'access-1',
+                notificationPrefs: JSON.stringify({ appointmentReminders: true }),
+                grantedTo: { id: 'caregiver-1', lineUserId: 'U_caregiver_1' },
+              },
+            ],
+          },
+        },
+      }),
+    ])
+
+    await dispatchDueReminders()
+
+    expect(mockSendLinePush).toHaveBeenCalledTimes(1)
+    expect(mockSendLinePush).toHaveBeenCalledWith('U_caregiver_1', expect.stringContaining('Checkup'))
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('user not found')
     )
     warnSpy.mockRestore()
   })

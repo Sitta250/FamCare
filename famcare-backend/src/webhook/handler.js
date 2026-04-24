@@ -1,4 +1,5 @@
 import { messagingApi } from '@line/bot-sdk'
+import { GoogleGenerativeAI } from '@google/generative-ai'
 import { prisma } from '../lib/prisma.js'
 import { findOrCreateByLineUserId } from '../services/userService.js'
 import { createAppointment } from '../services/appointmentService.js'
@@ -6,6 +7,10 @@ import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medica
 import { uploadBuffer } from '../services/cloudinaryService.js'
 
 let lineClient = null
+let geminiModel = null
+
+const GEMINI_FALLBACK_TEXT = 'ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
+const SYSTEM_PROMPT = `You are FamCare, a Thai family health assistant. Help users manage medications, appointments, and health records for their elderly family members. Respond in Thai if the user writes in Thai, English if they write in English. Keep responses concise and friendly.`
 
 function getLineClient() {
   if (!lineClient && process.env.LINE_CHANNEL_ACCESS_TOKEN) {
@@ -22,6 +27,31 @@ function reply(client, replyToken, text) {
     replyToken,
     messages: [{ type: 'text', text }],
   })
+}
+
+function getGeminiModel() {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY is not configured')
+  }
+
+  if (!geminiModel) {
+    const genAI = new GoogleGenerativeAI(apiKey)
+    geminiModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' })
+  }
+
+  return geminiModel
+}
+
+async function getGeminiReply(userMessage) {
+  try {
+    const model = getGeminiModel()
+    const result = await model.generateContent(`${SYSTEM_PROMPT}\n\nUser: ${userMessage}`)
+    return result?.response?.text()?.trim() || GEMINI_FALLBACK_TEXT
+  } catch (err) {
+    console.error('Gemini error:', err)
+    return GEMINI_FALLBACK_TEXT
+  }
 }
 
 function getLineUserId(event) {
@@ -48,8 +78,9 @@ async function handleTextMessage(event) {
   if (!lineUserId) return
 
   await findOrCreateByLineUserId(lineUserId)
+  const text = await getGeminiReply(event.message.text)
 
-  return reply(client, event.replyToken, 'FamCare received your message')
+  return reply(client, event.replyToken, text)
 }
 
 // ── Postback handling ────────────────────────────────────────────────────────

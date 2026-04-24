@@ -9,6 +9,30 @@ function normalizeLineUserId(value) {
   return normalized.length > 0 ? normalized : null
 }
 
+async function getValidLineUserId(userId, reminderId, recipientLabel) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, lineUserId: true },
+  })
+
+  if (!user) {
+    console.warn(
+      `[reminder] skip ${recipientLabel} recipient for reminder ${reminderId}: user not found (${userId})`
+    )
+    return null
+  }
+
+  const lineUserId = normalizeLineUserId(user.lineUserId)
+  if (!lineUserId) {
+    console.warn(
+      `[reminder] skip ${recipientLabel} recipient for reminder ${reminderId}: missing/invalid lineUserId (user ${user.id})`
+    )
+    return null
+  }
+
+  return lineUserId
+}
+
 export async function dispatchDueReminders() {
   const now = new Date()
   const window = new Date(now.getTime() + 5 * 60 * 1000)
@@ -43,25 +67,25 @@ export async function dispatchDueReminders() {
 
       // Collect distinct LINE user ids: owner + caregivers
       const recipients = new Map()
-      const ownerLineUserId = normalizeLineUserId(familyMember.owner.lineUserId)
+      const ownerLineUserId = await getValidLineUserId(
+        familyMember.owner.id,
+        reminder.id,
+        'owner'
+      )
       if (ownerLineUserId) {
         recipients.set(familyMember.owner.id, ownerLineUserId)
-      } else {
-        console.warn(
-          `[reminder] skip owner recipient for reminder ${reminder.id}: missing/invalid lineUserId (user ${familyMember.owner.id})`
-        )
       }
       if (familyMember.owner.chatMode === 'GROUP') {
         for (const access of familyMember.accessList) {
           const prefs = parseNotificationPrefs(access.notificationPrefs)
           if (prefs.appointmentReminders) {
-            const caregiverLineUserId = normalizeLineUserId(access.grantedTo.lineUserId)
+            const caregiverLineUserId = await getValidLineUserId(
+              access.grantedTo.id,
+              reminder.id,
+              'caregiver'
+            )
             if (caregiverLineUserId) {
               recipients.set(access.grantedTo.id, caregiverLineUserId)
-            } else {
-              console.warn(
-                `[reminder] skip caregiver recipient for reminder ${reminder.id}: missing/invalid lineUserId (user ${access.grantedTo.id})`
-              )
             }
           }
         }

@@ -14,6 +14,7 @@ const mockReplyMessage = jest.fn()
 const mockUploadBuffer = jest.fn()
 const mockCreateAppointment = jest.fn()
 const mockSendLinePushToUser = jest.fn()
+const mockGenerateContent = jest.fn()
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
   prisma: {
@@ -48,6 +49,14 @@ jest.unstable_mockModule('@line/bot-sdk', () => ({
       replyMessage: mockReplyMessage,
     })),
   },
+}))
+
+jest.unstable_mockModule('@google/generative-ai', () => ({
+  GoogleGenerativeAI: jest.fn().mockImplementation(() => ({
+    getGenerativeModel: jest.fn().mockReturnValue({
+      generateContent: mockGenerateContent,
+    }),
+  })),
 }))
 
 jest.unstable_mockModule('../services/cloudinaryService.js', () => ({
@@ -110,6 +119,22 @@ beforeEach(() => {
     lineUserId: LINE_ID,
     familyMembers: [{ id: MEMBER_ID }],
   })
+  mockUserFindUnique.mockImplementation(async ({ where: { id } }) => {
+    if (id === USER_ID) {
+      return {
+        id: USER_ID,
+        lineUserId: LINE_ID,
+        familyMembers: [{ id: MEMBER_ID }],
+      }
+    }
+    if (id === CAREGIVER_ID) {
+      return {
+        id: CAREGIVER_ID,
+        lineUserId: CAREGIVER_LINE_ID,
+      }
+    }
+    return null
+  })
   mockFamilyMemberFindUnique.mockResolvedValue({
     id: MEMBER_ID,
     ownerId: USER_ID,
@@ -137,6 +162,11 @@ beforeEach(() => {
     voiceNoteUrl: 'https://example.com/audio.m4a',
   })
   mockReplyMessage.mockResolvedValue(undefined)
+  mockGenerateContent.mockResolvedValue({
+    response: {
+      text: () => 'สวัสดีจาก Gemini',
+    },
+  })
   mockUploadBuffer.mockResolvedValue({
     secure_url: 'https://res.cloudinary.com/demo/video/upload/v1/famcare/voice/audio.m4a',
   })
@@ -152,6 +182,7 @@ beforeEach(() => {
   })
   process.env.LINE_CHANNEL_ACCESS_TOKEN = 'test-token'
   process.env.CLOUDINARY_URL = 'cloudinary://demo'
+  process.env.GEMINI_API_KEY = 'test-gemini-key'
 })
 
 afterEach(() => {
@@ -554,7 +585,7 @@ describe('handleLineWebhook text messages', () => {
     }
   }
 
-  test('replies with deterministic webhook-loop confirmation text', async () => {
+  test('replies with Gemini-generated text', async () => {
     const req = makeTextReq('สวัสดี')
     const res = makeRes()
 
@@ -562,9 +593,10 @@ describe('handleLineWebhook text messages', () => {
 
     expect(mockCreateAppointment).not.toHaveBeenCalled()
     expect(mockUserUpdate).not.toHaveBeenCalled()
+    expect(mockGenerateContent).toHaveBeenCalledWith(expect.stringContaining('User: สวัสดี'))
     expect(mockReplyMessage).toHaveBeenCalledWith({
       replyToken: 'reply-token-1',
-      messages: [{ type: 'text', text: 'FamCare received your message' }],
+      messages: [{ type: 'text', text: 'สวัสดีจาก Gemini' }],
     })
   })
 
@@ -600,5 +632,18 @@ describe('handleLineWebhook text messages', () => {
     })
     expect(warnSpy).toHaveBeenCalled()
     warnSpy.mockRestore()
+  })
+
+  test('sends Thai fallback text when Gemini fails', async () => {
+    mockGenerateContent.mockRejectedValueOnce(new Error('Gemini unavailable'))
+    const req = makeTextReq('hello')
+    const res = makeRes()
+
+    await handleLineWebhook(req, res)
+
+    expect(mockReplyMessage).toHaveBeenCalledWith({
+      replyToken: 'reply-token-1',
+      messages: [{ type: 'text', text: 'ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง' }],
+    })
   })
 })
