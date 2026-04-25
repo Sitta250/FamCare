@@ -41,7 +41,8 @@ jest.unstable_mockModule('../services/medicationService.js', () => ({
 }))
 
 jest.unstable_mockModule('../services/aiService.js', () => ({
-  handleAiMessage: jest.fn().mockResolvedValue('mock AI reply'),
+  handleAiMessage: jest.fn().mockResolvedValue({ type: 'text', text: 'mock AI reply' }),
+  executeIntent: jest.fn(),
 }))
 
 jest.unstable_mockModule('../services/familyMemberService.js', () => ({

@@ -25,7 +25,14 @@ jest.unstable_mockModule('@google/generative-ai', () => ({
 }))
 
 jest.unstable_mockModule('../lib/prisma.js', () => ({
-  prisma: {},
+  prisma: {
+    conversationMessage: {
+      findMany:   jest.fn().mockResolvedValue([]),
+      findFirst:  jest.fn().mockResolvedValue(null),
+      createMany: jest.fn().mockResolvedValue({ count: 2 }),
+      deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+    },
+  },
 }))
 
 jest.unstable_mockModule('../services/appointmentService.js', () => ({
@@ -64,7 +71,7 @@ const { handleAiMessage } = await import('../services/aiService.js')
 
 // ── Test constants ────────────────────────────────────────────────────────────
 
-const USER = { id: 'user1' }
+const USER = { id: 'user1', lineUserId: 'line-user-1' }
 const FAMILY_MEMBERS = [{ id: 'mem1', name: 'แม่' }]
 const FALLBACK_TEXT = 'ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
 
@@ -100,8 +107,8 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('นัดหมอพรุ่งนี้', USER, FAMILY_MEMBERS)
 
-    expect(result).toContain('✅')
-    expect(result).toContain('นัดหมอ')
+    expect(result.text).toContain('✅')
+    expect(result.text).toContain('นัดหมอ')
     expect(mockCreateAppointment).toHaveBeenCalledTimes(1)
     expect(mockCreateAppointment).toHaveBeenCalledWith(
       'user1',
@@ -127,8 +134,8 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('แม่กินพาราแล้ว', USER, FAMILY_MEMBERS)
 
-    expect(result).toContain('พาราเซตามอล')
-    expect(result).toContain('✅')
+    expect(result.text).toContain('พาราเซตามอล')
+    expect(result.text).toContain('✅')
     expect(mockCreateMedicationLog).toHaveBeenCalledTimes(1)
     expect(mockCreateMedicationLog).toHaveBeenCalledWith(
       'user1',
@@ -151,8 +158,8 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('แม่กินยาไม่มีแล้ว', USER, FAMILY_MEMBERS)
 
-    expect(result).toContain('❌')
-    expect(result).toContain('ยาไม่มี')
+    expect(result.text).toContain('❌')
+    expect(result.text).toContain('ยาไม่มี')
     expect(mockCreateMedicationLog).not.toHaveBeenCalled()
   })
 
@@ -171,8 +178,8 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('ความดันแม่ 120/80', USER, FAMILY_MEMBERS)
 
-    expect(result).toContain('ความดัน')
-    expect(result).toContain('120/80')
+    expect(result.text).toContain('ความดัน')
+    expect(result.text).toContain('120/80')
     expect(mockCreateHealthMetric).toHaveBeenCalledTimes(1)
     expect(mockCreateHealthMetric).toHaveBeenCalledWith(
       'user1',
@@ -191,7 +198,7 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('แม่ปวดหัวมาก', USER, FAMILY_MEMBERS)
 
-    expect(result).toContain('ปวดหัวมาก')
+    expect(result.text).toContain('ปวดหัวมาก')
     expect(mockCreateSymptomLog).toHaveBeenCalledTimes(1)
   })
 
@@ -203,7 +210,7 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('สวัสดี', USER, FAMILY_MEMBERS)
 
-    expect(result).toBe('สวัสดีครับ ช่วยอะไรได้บ้าง')
+    expect(result.text).toBe('สวัสดีครับ ช่วยอะไรได้บ้าง')
     expect(mockCreateAppointment).not.toHaveBeenCalled()
     expect(mockCreateMedicationLog).not.toHaveBeenCalled()
     expect(mockCreateHealthMetric).not.toHaveBeenCalled()
@@ -215,7 +222,7 @@ describe('aiService intent pipeline', () => {
 
     const result = await handleAiMessage('อะไรก็ได้', USER, FAMILY_MEMBERS)
 
-    expect(result).toBe(FALLBACK_TEXT)
+    expect(result.text).toBe(FALLBACK_TEXT)
   })
 
   it('auto-selects first family member when familyMemberId is null', async () => {

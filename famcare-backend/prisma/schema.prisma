@@ -249,7 +249,39 @@ model SymptomLog {
   familyMember FamilyMember @relation(fields: [familyMemberId], references: [id], onDelete: Cascade)
 }
 
+model AiUsageLog {
+  id         String @id @default(cuid())
+  lineUserId String
+  date       String // "YYYY-MM-DD" Bangkok timezone
+  count      Int    @default(0)
+
+  @@unique([lineUserId, date])
+}
+
+model PendingAction {
+  id         String   @id @default(cuid())
+  lineUserId String   @unique
+  intentJson String
+  createdAt  DateTime @default(now())
+}
+
+model ConversationMessage {
+  id             String           @id @default(cuid())
+  lineUserId     String
+  familyMemberId String?
+  role           ConversationRole
+  content        String
+  createdAt      DateTime         @default(now())
+
+  @@index([lineUserId, familyMemberId, createdAt])
+}
+
 // Enums
+
+enum ConversationRole {
+  USER
+  BOT
+}
 
 enum AccessRole {
   CAREGIVER

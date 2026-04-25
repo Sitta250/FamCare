@@ -71,6 +71,7 @@ jest.unstable_mockModule('../services/appointmentService.js', () => ({
 
 jest.unstable_mockModule('../services/aiService.js', () => ({
   handleAiMessage: mockHandleAiMessage,
+  executeIntent: jest.fn(),
 }))
 
 jest.unstable_mockModule('../services/familyMemberService.js', () => ({
@@ -600,7 +601,7 @@ describe('handleLineWebhook text messages', () => {
   }
 
   test('replies with AI-generated text', async () => {
-    mockHandleAiMessage.mockResolvedValueOnce('สวัสดีจาก AI')
+    mockHandleAiMessage.mockResolvedValueOnce({ type: 'text', text: 'สวัสดีจาก AI' })
     const req = makeTextReq('สวัสดี')
     const res = makeRes()
 

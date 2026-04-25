@@ -5,7 +5,7 @@ import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medica
 import { createAppointment } from '../services/appointmentService.js'
 import { listFamilyMembers } from '../services/familyMemberService.js'
 import { uploadBuffer } from '../services/cloudinaryService.js'
-import { handleAiMessage } from '../services/aiService.js'
+import { handleAiMessage, executeIntent } from '../services/aiService.js'
 
 let lineClient = null
 
@@ -23,6 +23,23 @@ function reply(client, replyToken, text) {
   return client.replyMessage({
     replyToken,
     messages: [{ type: 'text', text }],
+  })
+}
+
+function replyWithQuickReply(client, replyToken, text, items) {
+  if (!client || !replyToken) return Promise.resolve()
+  return client.replyMessage({
+    replyToken,
+    messages: [{
+      type: 'text',
+      text,
+      quickReply: {
+        items: items.map(item => ({
+          type: 'action',
+          action: { type: 'postback', label: item.label, data: item.postbackData },
+        })),
+      },
+    }],
   })
 }
 
@@ -53,16 +70,25 @@ async function handleTextMessage(event) {
 
   const user = await findOrCreateByLineUserId(lineUserId)
 
-  let text
+  let response
   try {
     const familyMembers = await listFamilyMembers(user.id)
-    text = await handleAiMessage(event.message.text, user, familyMembers)
+    response = await handleAiMessage(event.message.text, user, familyMembers)
   } catch (err) {
     console.error('[webhook] AI message handling failed:', err.message)
-    text = AI_FALLBACK_TEXT
+    response = { type: 'text', text: AI_FALLBACK_TEXT }
   }
 
-  return reply(client, event.replyToken, text)
+  if (response.type === 'quickReply') {
+    return replyWithQuickReply(client, event.replyToken, response.text, response.items)
+  }
+  if (response.type === 'flexMessage') {
+    return client.replyMessage({
+      replyToken: event.replyToken,
+      messages: [{ type: 'flex', altText: response.altText, contents: response.contents }],
+    })
+  }
+  return reply(client, event.replyToken, response.text)
 }
 
 // ── Postback handling ────────────────────────────────────────────────────────
@@ -88,6 +114,29 @@ async function handlePostback(event) {
   }
 
   const { action } = data
+
+  if (action === 'resolve_member') {
+    const { familyMemberId, pendingIntent: encodedIntent } = data
+    let intent
+    try {
+      intent = JSON.parse(decodeURIComponent(encodedIntent))
+    } catch {
+      return reply(client, event.replyToken, 'ไม่สามารถประมวลผลคำสั่งได้')
+    }
+
+    intent.familyMemberId = familyMemberId
+
+    const user = await findOrCreateByLineUserId(lineUserId)
+    const familyMembers = await listFamilyMembers(user.id)
+
+    try {
+      const result = await executeIntent(intent, user.id, familyMembers)
+      return reply(client, event.replyToken, result)
+    } catch (err) {
+      console.error('[webhook] resolve_member executeIntent failed:', err.message)
+      return reply(client, event.replyToken, 'เกิดข้อผิดพลาด กรุณาลองใหม่')
+    }
+  }
 
   if (action === 'add_appointment') {
     try {
@@ -148,6 +197,40 @@ async function handlePostback(event) {
       console.error('[webhook] log_medication failed:', err.message)
       return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
     }
+  }
+
+  if (action === 'confirm_destructive') {
+    const user = await findOrCreateByLineUserId(lineUserId)
+    const pending = await prisma.pendingAction.findUnique({ where: { lineUserId } })
+    if (!pending) {
+      return reply(client, event.replyToken, 'ไม่พบคำสั่งที่รอยืนยัน')
+    }
+
+    // Delete before executing to prevent double-execution
+    await prisma.pendingAction.delete({ where: { lineUserId } })
+
+    let intent
+    try {
+      intent = JSON.parse(pending.intentJson)
+    } catch {
+      console.warn('[webhook] confirm_destructive: malformed intentJson')
+      return reply(client, event.replyToken, 'ไม่สามารถประมวลผลคำสั่งได้')
+    }
+
+    const familyMembers = await listFamilyMembers(user.id)
+    try {
+      const result = await executeIntent(intent, user.id, familyMembers)
+      return reply(client, event.replyToken, result)
+    } catch (err) {
+      console.error('[webhook] confirm_destructive failed:', err.message)
+      return reply(client, event.replyToken, `เกิดข้อผิดพลาด: ${err.message}`)
+    }
+  }
+
+  if (action === 'cancel_destructive') {
+    const user = await findOrCreateByLineUserId(lineUserId)
+    await prisma.pendingAction.deleteMany({ where: { lineUserId: user.lineUserId } }).catch(() => {})
+    return reply(client, event.replyToken, 'ยกเลิกแล้วครับ')
   }
 
   console.log(`[webhook] unhandled postback action: ${action}`)
