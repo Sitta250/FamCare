@@ -3,9 +3,10 @@ import { prisma } from '../lib/prisma.js'
 import { findOrCreateByLineUserId } from '../services/userService.js'
 import { createMedicationLog, MEDICATION_LOG_STATUSES } from '../services/medicationService.js'
 import { createAppointment } from '../services/appointmentService.js'
-import { listFamilyMembers } from '../services/familyMemberService.js'
+import { listFamilyMembers, createFamilyMember } from '../services/familyMemberService.js'
 import { uploadBuffer } from '../services/cloudinaryService.js'
 import { handleAiMessage, executeIntent } from '../services/aiService.js'
+import { parseThaiBuddhistDate } from '../utils/datetime.js'
 
 let lineClient = null
 
@@ -62,6 +63,52 @@ async function guardLineUserId(event, client) {
 // ── Text message handling ────────────────────────────────────────────────────
 
 const AI_FALLBACK_TEXT = 'ขออภัย ระบบขัดข้องชั่วคราว กรุณาลองใหม่อีกครั้ง'
+const ONBOARDING_TIMEOUT_MS = 10 * 60 * 1000
+
+async function getActiveOnboardingSession(lineUserId) {
+  const session = await prisma.onboardingSession.findUnique({ where: { lineUserId } })
+  if (!session) return null
+  if (Date.now() - session.updatedAt.getTime() > ONBOARDING_TIMEOUT_MS) {
+    await prisma.onboardingSession.delete({ where: { lineUserId } })
+    return null
+  }
+  return session
+}
+
+async function handleOnboardingText(event, user, session) {
+  const client = getLineClient()
+  const text = event.message.text.trim()
+
+  if (session.step === 'AWAITING_NAME') {
+    await prisma.onboardingSession.update({
+      where: { lineUserId: user.lineUserId },
+      data: { name: text, step: 'AWAITING_DOB' },
+    })
+    return reply(client, event.replyToken, 'เกิดวันที่เท่าไหร่ครับ? (ตัวอย่าง: 15 มีนาคม 2500)')
+  }
+
+  if (session.step === 'AWAITING_DOB') {
+    const dob = parseThaiBuddhistDate(text)
+    if (!dob) {
+      return reply(client, event.replyToken, 'ไม่สามารถอ่านวันเกิดได้ กรุณาลองใหม่ เช่น "15 มีนาคม 2500"')
+    }
+    try {
+      await createFamilyMember(user.id, { name: session.name, dateOfBirth: dob, relation: 'สมาชิก' })
+      await prisma.onboardingSession.delete({ where: { lineUserId: user.lineUserId } })
+      return reply(client, event.replyToken, `✅ เพิ่ม ${session.name} เรียบร้อยแล้ว ตอนนี้คุณสามารถเริ่มบันทึกข้อมูลสุขภาพได้เลยครับ`)
+    } catch (err) {
+      await prisma.onboardingSession.delete({ where: { lineUserId: user.lineUserId } }).catch(() => {})
+      return reply(client, event.replyToken, 'เกิดข้อผิดพลาดในการเพิ่มสมาชิก กรุณาลองใหม่')
+    }
+  }
+}
+
+function sendOnboardingPrompt(client, replyToken) {
+  return replyWithQuickReply(client, replyToken, 'ยินดีต้อนรับ! กรุณาเพิ่มสมาชิกในครอบครัวเพื่อเริ่มใช้งาน', [
+    { label: 'เพิ่มสมาชิกตอนนี้', postbackData: JSON.stringify({ action: 'onboard_start' }) },
+    { label: 'เปิดแอป FamCare', postbackData: JSON.stringify({ action: 'onboard_app' }) },
+  ])
+}
 
 async function handleTextMessage(event) {
   const client = getLineClient()
@@ -70,9 +117,21 @@ async function handleTextMessage(event) {
 
   const user = await findOrCreateByLineUserId(lineUserId)
 
+  // 1. Check for active onboarding session
+  const session = await getActiveOnboardingSession(lineUserId)
+  if (session) {
+    return handleOnboardingText(event, user, session)
+  }
+
+  // 2. Check if user has no family members
+  const familyMembers = await listFamilyMembers(user.id)
+  if (familyMembers.length === 0) {
+    return sendOnboardingPrompt(client, event.replyToken)
+  }
+
+  // 3. Normal AI flow
   let response
   try {
-    const familyMembers = await listFamilyMembers(user.id)
     response = await handleAiMessage(event.message.text, user, familyMembers)
   } catch (err) {
     console.error('[webhook] AI message handling failed:', err.message)
@@ -114,6 +173,24 @@ async function handlePostback(event) {
   }
 
   const { action } = data
+
+  if (action === 'onboard_start') {
+    const user = await findOrCreateByLineUserId(lineUserId)
+    const members = await listFamilyMembers(user.id)
+    if (members.length > 0) {
+      return reply(client, event.replyToken, 'คุณมีสมาชิกในครอบครัวแล้ว พิมพ์คำถามได้เลยครับ')
+    }
+    await prisma.onboardingSession.upsert({
+      where: { lineUserId },
+      create: { lineUserId, step: 'AWAITING_NAME' },
+      update: { step: 'AWAITING_NAME', name: null },
+    })
+    return reply(client, event.replyToken, 'ชื่อสมาชิกที่ต้องการดูแลคือใครครับ?')
+  }
+
+  if (action === 'onboard_app') {
+    return reply(client, event.replyToken, 'กรุณาเปิดแอป FamCare เพื่อเพิ่มสมาชิกในครอบครัว หลังจากนั้นกลับมาคุยกับบอทได้เลยครับ')
+  }
 
   if (action === 'resolve_member') {
     const { familyMemberId, pendingIntent: encodedIntent } = data

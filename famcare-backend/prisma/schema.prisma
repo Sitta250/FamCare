@@ -276,6 +276,15 @@ model ConversationMessage {
   @@index([lineUserId, familyMemberId, createdAt])
 }
 
+model OnboardingSession {
+  id         String         @id @default(cuid())
+  lineUserId String         @unique
+  step       OnboardingStep
+  name       String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
+}
+
 // Enums
 
 enum ConversationRole {
@@ -329,4 +338,9 @@ enum DocumentType {
 enum ChatMode {
   PRIVATE
   GROUP
+}
+
+enum OnboardingStep {
+  AWAITING_NAME
+  AWAITING_DOB
 }

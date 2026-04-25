@@ -28,6 +28,7 @@ jest.unstable_mockModule('../services/userService.js', () => ({
 
 jest.unstable_mockModule('../services/familyMemberService.js', () => ({
   listFamilyMembers: jest.fn().mockResolvedValue(mockFamilyMembers),
+  createFamilyMember: jest.fn(),
 }))
 
 jest.unstable_mockModule('../services/cloudinaryService.js', () => ({
@@ -50,6 +51,12 @@ const mockPrisma = {
   },
   medication: {
     findUnique: jest.fn(),
+  },
+  onboardingSession: {
+    findUnique: jest.fn().mockResolvedValue(null),
+    delete: jest.fn().mockResolvedValue({}),
+    upsert: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
   },
 }
 

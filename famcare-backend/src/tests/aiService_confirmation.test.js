@@ -56,6 +56,22 @@ jest.unstable_mockModule('../services/symptomLogService.js', () => ({
 jest.unstable_mockModule('../utils/datetime.js', () => ({
   toBangkokISO: jest.fn(d => d.toISOString()),
   bangkokCalendarDate: jest.fn(() => '2026-04-25'),
+  utcInstantFromBangkokYmdHm: jest.fn((ymd, hm) => new Date(`${ymd}T${hm}:00+07:00`)),
+}))
+
+jest.unstable_mockModule('../services/documentService.js', () => ({
+  listDocuments: jest.fn().mockResolvedValue([]),
+  getDocument: jest.fn(),
+  deleteDocument: jest.fn(),
+  createDocument: jest.fn(),
+}))
+
+jest.unstable_mockModule('../services/insuranceService.js', () => ({
+  listInsuranceCards: jest.fn().mockResolvedValue([]),
+  getInsuranceCard: jest.fn(),
+  updateInsuranceCard: jest.fn(),
+  deleteInsuranceCard: jest.fn(),
+  createInsuranceCard: jest.fn(),
 }))
 
 // ── Test setup ─────────────────────────────────────────────────────────────────

@@ -28,6 +28,15 @@ import {
   createSymptomLog,
   listSymptomLogs,
 } from './symptomLogService.js'
+import {
+  listDocuments,
+  deleteDocument,
+} from './documentService.js'
+import {
+  listInsuranceCards,
+  updateInsuranceCard,
+  deleteInsuranceCard,
+} from './insuranceService.js'
 import { toBangkokISO, bangkokCalendarDate } from '../utils/datetime.js'
 
 // ── Gemini setup ─────────────────────────────────────────────────────────────
@@ -179,6 +188,13 @@ Detect the user's intent from this list:
 - "list_health_metrics"— user wants to see recent health readings
 - "log_symptom"        — user is describing a symptom or complaint
 - "list_symptoms"      — user wants to see recent symptom logs
+- "list_documents"     — user wants to see documents for a family member
+- "get_document"       — user wants details of a specific document
+- "delete_document"    — user wants to delete a document
+- "list_insurance"     — user wants to see insurance cards for a family member
+- "get_insurance"      — user wants details of a specific insurance card
+- "update_insurance"   — user wants to update an insurance card's details
+- "delete_insurance"   — user wants to delete an insurance card
 - "chat"               — anything else; general question or conversation
 
 JSON shape per intent:
@@ -248,6 +264,58 @@ list_symptoms:
   "familyMemberId": "<id or null>"
 }
 
+list_documents:
+{
+  "intent": "list_documents",
+  "familyMemberId": "<id or null>",
+  "type": "<document type or null>",
+  "keyword": "<search keyword or null>"
+}
+
+get_document:
+{
+  "intent": "get_document",
+  "familyMemberId": "<id or null>",
+  "keyword": "<document name or search term>"
+}
+
+delete_document:
+{
+  "intent": "delete_document",
+  "familyMemberId": "<id or null>",
+  "keyword": "<document name to delete>"
+}
+
+list_insurance:
+{
+  "intent": "list_insurance",
+  "familyMemberId": "<id or null>"
+}
+
+get_insurance:
+{
+  "intent": "get_insurance",
+  "familyMemberId": "<id or null>",
+  "keyword": "<company name or policy number or null>"
+}
+
+update_insurance:
+{
+  "intent": "update_insurance",
+  "familyMemberId": "<id or null>",
+  "keyword": "<insurance card identifier>",
+  "expirationDate": "<ISO 8601 or null>",
+  "policyNumber": "<new policy number or null>",
+  "companyName": "<new company name or null>"
+}
+
+delete_insurance:
+{
+  "intent": "delete_insurance",
+  "familyMemberId": "<id or null>",
+  "keyword": "<insurance card identifier>"
+}
+
 chat:
 {
   "intent": "chat",
@@ -267,8 +335,13 @@ User message: "${userMessage.replace(/"/g, '\\"')}"`
 // ── Intent validation ─────────────────────────────────────────────────────────
 
 const KNOWN_INTENTS = new Set([
-  'add_appointment', 'list_appointments', 'log_medication', 'list_medications',
-  'log_health_metric', 'list_health_metrics', 'log_symptom', 'list_symptoms', 'chat',
+  'add_appointment', 'list_appointments', 'delete_appointment', 'update_appointment',
+  'log_medication', 'list_medications', 'delete_medication',
+  'log_health_metric', 'list_health_metrics',
+  'log_symptom', 'list_symptoms', 'delete_symptom',
+  'list_documents', 'get_document', 'delete_document',
+  'list_insurance', 'get_insurance', 'update_insurance', 'delete_insurance',
+  'chat',
 ])
 
 const VALID_MEDICATION_STATUSES = new Set(['TAKEN', 'MISSED', 'SKIPPED'])
@@ -374,6 +447,8 @@ const DESTRUCTIVE_INTENTS = new Set([
   'delete_appointment',
   'delete_medication',
   'delete_symptom',
+  'delete_document',
+  'delete_insurance',
   'update_appointment',
 ])
 
@@ -392,6 +467,10 @@ function buildDestructiveSummary(intent, familyMembers) {
       return `ลบยา "${intent.medicationName ?? intent.name ?? 'ยา'}" ${ofMember}`.trim()
     case 'delete_symptom':
       return `ลบบันทึกอาการ ${ofMember}`.trim()
+    case 'delete_document':
+      return `ลบเอกสาร "${intent.keyword ?? 'เอกสาร'}" ${ofMember}`.trim()
+    case 'delete_insurance':
+      return `ลบบัตรประกัน "${intent.keyword ?? 'บัตรประกัน'}" ${ofMember}`.trim()
     default:
       return `ดำเนินการ "${intent.intent}" ${ofMember}`.trim()
   }
@@ -459,6 +538,8 @@ async function storePendingAndBuildConfirmation(lineUserId, intent, familyMember
 const INTENTS_REQUIRING_MEMBER = new Set([
   'add_appointment', 'list_appointments', 'log_medication', 'list_medications',
   'log_health_metric', 'list_health_metrics', 'log_symptom', 'list_symptoms',
+  'list_documents', 'get_document', 'delete_document',
+  'list_insurance', 'get_insurance', 'update_insurance', 'delete_insurance',
 ])
 
 function buildAmbiguityQuickReply(intent, familyMembers) {
@@ -652,6 +733,142 @@ export async function executeIntent(intent, userId, familyMembers) {
         return `• ${date}: ${s.description}`
       })
       return `🩹 อาการล่าสุดของ${memberNameById(memberId, familyMembers)}:\n${lines.join('\n')}`
+    }
+
+    case 'list_documents': {
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const docs = await listDocuments(userId, { familyMemberId: memberId, keyword: intent.keyword ?? undefined })
+        if (!docs.length) return `📄 ไม่พบเอกสารสำหรับ${memberNameById(memberId, familyMembers)}`
+        const lines = docs.slice(0, 5).map(d => `• ${d.type}: ${d.ocrText?.slice(0, 50) ?? d.tags ?? '(ไม่มีข้อความ)'}`)
+        return `📄 เอกสารของ${memberNameById(memberId, familyMembers)}:\n${lines.join('\n')}`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์เข้าถึงเอกสารของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'get_document': {
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const docs = await listDocuments(userId, { familyMemberId: memberId, keyword: intent.keyword ?? undefined })
+        if (!docs.length) return `📄 ไม่พบเอกสาร "${intent.keyword ?? ''}"`
+        const d = docs[0]
+        const extra = docs.length > 1 ? `\n(พบ ${docs.length} เอกสาร พิมพ์ชื่อให้ชัดขึ้นเพื่อค้นหาเฉพาะ)` : ''
+        return `📄 ${d.type}\n${d.ocrText?.slice(0, 200) ?? '(ไม่มีข้อความ OCR)'}${extra}`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์เข้าถึงเอกสารของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'delete_document': {
+      // Reached only after confirmation (Feature 3 flow)
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const docs = await listDocuments(userId, { familyMemberId: memberId, keyword: intent.keyword ?? undefined })
+        if (!docs.length) return `❌ ไม่พบเอกสาร "${intent.keyword ?? ''}"`
+        await deleteDocument(userId, docs[0].id)
+        return `🗑️ ลบเอกสารเรียบร้อยแล้ว`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์ลบเอกสารของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'list_insurance': {
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const cards = await listInsuranceCards(userId, { familyMemberId: memberId })
+        if (!cards.length) return `🏥 ไม่พบข้อมูลประกันสำหรับ${memberNameById(memberId, familyMembers)}`
+        const lines = cards.slice(0, 5).map(c => {
+          const expiry = c.expirationDate ? ` (หมดอายุ: ${c.expirationDate.slice(0, 10)})` : ''
+          return `• ${c.companyName ?? 'ไม่ระบุบริษัท'} — ${c.policyNumber ?? 'ไม่ระบุเลขกรมธรรม์'}${expiry}`
+        })
+        return `🏥 ประกันของ${memberNameById(memberId, familyMembers)}:\n${lines.join('\n')}`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์เข้าถึงข้อมูลประกันของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'get_insurance': {
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const cards = await listInsuranceCards(userId, { familyMemberId: memberId })
+        const kw = intent.keyword?.toLowerCase() ?? ''
+        const card = kw
+          ? (cards.find(c =>
+              c.companyName?.toLowerCase().includes(kw) ||
+              c.policyNumber?.toLowerCase().includes(kw)
+            ) ?? cards[0])
+          : cards[0]
+        if (!card) return `🏥 ไม่พบข้อมูลประกันสำหรับ${memberNameById(memberId, familyMembers)}`
+        const expiry = card.expirationDate ? card.expirationDate.slice(0, 10) : 'ไม่ระบุ'
+        const status = card.status ?? ''
+        return `🏥 ${card.companyName ?? 'ไม่ระบุบริษัท'}\nเลขกรมธรรม์: ${card.policyNumber ?? 'ไม่ระบุ'}\nวันหมดอายุ: ${expiry}\nสถานะ: ${status}`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์เข้าถึงข้อมูลประกันของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'update_insurance': {
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const cards = await listInsuranceCards(userId, { familyMemberId: memberId })
+        const kw = intent.keyword?.toLowerCase() ?? ''
+        const card = kw
+          ? (cards.find(c =>
+              c.companyName?.toLowerCase().includes(kw) ||
+              c.policyNumber?.toLowerCase().includes(kw)
+            ) ?? null)
+          : (cards[0] ?? null)
+        if (!card) {
+          if (cards.length > 0) {
+            const suggestions = cards.slice(0, 3).map(c => c.companyName ?? c.policyNumber ?? 'ไม่ระบุ').join(', ')
+            return `🏥 ไม่พบบัตรประกัน "${intent.keyword}" กรุณาระบุให้ชัดขึ้น เช่น: ${suggestions}`
+          }
+          return `🏥 ไม่พบข้อมูลประกันสำหรับ${memberNameById(memberId, familyMembers)}`
+        }
+        const updateBody = {}
+        if (intent.expirationDate != null) updateBody.expirationDate = intent.expirationDate
+        if (intent.policyNumber != null) updateBody.policyNumber = intent.policyNumber
+        if (intent.companyName != null) updateBody.companyName = intent.companyName
+        await updateInsuranceCard(userId, card.id, updateBody)
+        return `✅ อัปเดตบัตรประกัน ${card.companyName ?? 'ประกัน'} เรียบร้อยแล้ว`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์แก้ไขข้อมูลประกันของสมาชิกคนนี้'
+        throw err
+      }
+    }
+
+    case 'delete_insurance': {
+      // Reached only after confirmation (Feature 3 flow)
+      const memberId = resolveOrPickFirstMember(intent.familyMemberId, familyMembers)
+      if (!memberId) return '❌ ไม่พบข้อมูลสมาชิกในครอบครัว กรุณาเพิ่มสมาชิกในแอปก่อน'
+      try {
+        const cards = await listInsuranceCards(userId, { familyMemberId: memberId })
+        const kw = intent.keyword?.toLowerCase() ?? ''
+        const card = kw
+          ? (cards.find(c =>
+              c.companyName?.toLowerCase().includes(kw) ||
+              c.policyNumber?.toLowerCase().includes(kw)
+            ) ?? null)
+          : (cards[0] ?? null)
+        if (!card) return `❌ ไม่พบบัตรประกัน "${intent.keyword ?? ''}"`
+        await deleteInsuranceCard(userId, card.id)
+        return `🗑️ ลบบัตรประกัน ${card.companyName ?? 'ประกัน'} เรียบร้อยแล้ว`
+      } catch (err) {
+        if (err.status === 403) return '❌ คุณไม่มีสิทธิ์ลบข้อมูลประกันของสมาชิกคนนี้'
+        throw err
+      }
     }
 
     case 'chat':

@@ -41,6 +41,12 @@ jest.unstable_mockModule('../lib/prisma.js', () => ({
     symptomLog: {
       create: mockSymptomLogCreate,
     },
+    onboardingSession: {
+      findUnique: jest.fn().mockResolvedValue(null),
+      delete: jest.fn().mockResolvedValue({}),
+      upsert: jest.fn().mockResolvedValue({}),
+      update: jest.fn().mockResolvedValue({}),
+    },
   },
 }))
 
@@ -577,7 +583,16 @@ describe('handleLineWebhook audio messages', () => {
   })
 })
 
+let mockListFamilyMembersRef
+const { listFamilyMembers: _listFamilyMembersImport } = await import('../services/familyMemberService.js')
+mockListFamilyMembersRef = _listFamilyMembersImport
+
 describe('handleLineWebhook text messages', () => {
+  beforeEach(() => {
+    // Ensure family members exist so normal AI flow is triggered (not onboarding)
+    mockListFamilyMembersRef.mockResolvedValue([{ id: MEMBER_ID, name: 'แม่' }])
+  })
+
   function makeTextReq(text) {
     return {
       body: {
